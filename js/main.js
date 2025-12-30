@@ -492,6 +492,21 @@ function performAdvancedStats(activeGroups, targetValue) {
         </table>`;
       break;
   }
+  if (analysis.postHoc && analysis.postHoc.length > 0) {
+    html += `<h3 style="color: #1f4e78; margin-top:20px;">🔍 事後檢定 (Tukey HSD)</h3>
+           <table style="width:100%; border-collapse: collapse;">
+             <thead><tr style="${tableHeaderStyle}"><td>比較對象</td><td>差異值</td><td>Q 統計量</td><td>顯著性</td></tr></thead>
+             <tbody>`;
+    analysis.postHoc.forEach(ph => {
+      html += `<tr>
+      <td style="${tableCellStyle}">${ph.pair}</td>
+      <td style="${tableCellStyle}">${ph.diff}</td>
+      <td style="${tableCellStyle}">${ph.qValue} (臨界值:${ph.qCrit})</td>
+      <td style="${tableCellStyle}">${ph.isSignificant ? '🚩 顯著' : '不顯著'}</td>
+    </tr>`;
+    });
+    html += `</tbody></table>`;
+  }
 
   // Final summary using the now-defined finalP
   const finalPStr = finalP < 0.0001 ? "< 0.0001" : finalP.toFixed(5);
