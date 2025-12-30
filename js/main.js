@@ -205,6 +205,16 @@ function performAdvancedStats(activeGroups, targetValue) {
     const pStr = p.toFixed(5);
     return p < 0.05 ? `<b style="color:#c0392b;">${pStr}</b>` : pStr;
   };
+  const getTCritHelper = (df, alpha = 0.05, tails = 2) => {
+    if (typeof tCDF !== 'function') return "---";
+    let target = tails === 2 ? 1 - alpha / 2 : 1 - alpha;
+    let low = 0, high = 100; // T值通常在此範圍
+    for (let i = 0; i < 20; i++) { // 二分搜尋提高精度
+      let mid = (low + high) / 2;
+      if (tCDF(mid, df) < target) low = mid; else high = mid;
+    }
+    return high.toFixed(4);
+  };
   const formatVal = (v) => (v === undefined || isNaN(v) ? "---" : v.toFixed(4));
   const getFlag = (p) => (p < 0.05 ? `<span style="color:#c0392b; font-weight:bold;">🚩 顯著差異</span>` : `<span style="color:#7f8c8d;">不顯著</span>`);
   const getFCritHelper = (df1, df2) => {
@@ -247,39 +257,71 @@ function performAdvancedStats(activeGroups, targetValue) {
         testMethodName = lev.isHomogeneous ? "獨立樣本 T 檢定 (等變異)" : "Welch's T 檢定 (不等變異)";
         analysis.data = tRes;
         finalP = tRes.p;
-        html += `<p style="font-size: 20px; color: #666;">(變異數齊一性檢定 P: ${lev.p.toFixed(4)}，判定：${lev.isHomogeneous ? '齊一' : '不齊一'})</p>`;
+        html += `<p style="font-size: 20px; color: #666;">變異數齊一性檢定Levene's Test (Brown-Forsythe) P: ${lev.p.toFixed(4)}，判定：${lev.isHomogeneous ? '齊一' : '不齊一'}</p>`;
       }
+      const pTwoTailed = analysis.data.p;
+      const pOneTailed = pTwoTailed / 2; // 單尾 P 值為雙尾的一半
       html += `<p style="font-size: 24px;">檢定類型：<b>${testMethodName}</b></p>
-        <table style="width:100%; border-collapse: collapse;">
-          <thead><tr style="${tableHeaderStyle}"><td>比較組別</td><td>T</td><td>df</td><td>P-Value</td><td>判定</td></tr></thead>
-          <tbody><tr>
-            <td style="${tableCellStyle}">${groupNames[0]} vs ${groupNames[1]}</td><td style="${tableCellStyle}">${formatVal(analysis.data.t)}</td>
-            <td style="${tableCellStyle}">${analysis.data.df.toFixed(2)}</td><td style="${tableCellStyle}">${formatP(analysis.data.p)}</td>
-            <td style="${tableCellStyle}">${getFlag(analysis.data.p)}</td>
-          </tr></tbody></table>`;
+    <table style="width:100%; border-collapse: collapse;">
+      <thead>
+        <tr style="${tableHeaderStyle}">
+          <td>比較組別</td>
+          <td>T 統計量</td>
+          <td>df</td>
+          <td>單尾 P-Value</td>
+          <td>雙尾 P-Value</td>
+          <td>判定 (雙尾)</td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="${tableCellStyle}">${groupNames[0]} vs ${groupNames[1]}</td>
+          <td style="${tableCellStyle}">${formatVal(analysis.data.t)}</td>
+          <td style="${tableCellStyle}">${analysis.data.df.toFixed(2)}</td>
+          <td style="${tableCellStyle}">${formatP(pOneTailed)}</td>
+          <td style="${tableCellStyle}">${formatP(pTwoTailed)}</td>
+          <td style="${tableCellStyle}">${getFlag(pTwoTailed)}</td>
+        </tr>
+      </tbody>
+    </table>`;
       break;
 
     case "ANOVA":
       const groupsArr = groupNames.map(n => logicalGroups[n]);
-      const levA = leveneTest(groupsArr);
-      const useWelch = !levA.isHomogeneous;
-      const resA = useWelch ? welchAnova(groupsArr) : analysis.data;
-      testMethodName = useWelch ? "Welch's ANOVA (不齊一)" : "One-way ANOVA (齊一)";
+      const levA = leveneTest(groupsArr); // 執行變異數齊一性檢定
+      const useWelch = !levA.isHomogeneous; // 判定是否不齊一
+      const resA = useWelch ? welchAnova(groupsArr) : analysis.data; // 選擇對應檢定方法
+
+      testMethodName = useWelch ? "Welch's ANOVA" : "One-way ANOVA";
       finalP = resA.p;
-      html += `<p style="font-size: 24px;">檢定類型：<b>${testMethodName}</b></p>
+
+      // 組合顯示標題與診斷資訊
+      html += `<p style="font-size: 24px;">檢定類型：<b>${testMethodName}</b> 
+               <span style="font-size: 20px; color: #666;">
+               (變異數齊一性檢定 Levene's Test (Brown-Forsythe) P: ${levA.p.toFixed(4)}，
+               判定：${levA.isHomogeneous ? '齊一' : '不齊一'})</span></p>
         <table style="width:100%; border-collapse: collapse;">
           <thead><tr style="${tableHeaderStyle}"><td>變異來源</td><td>SS</td><td>df</td><td>MS</td><td>F</td><td>P-value</td><td>F crit</td><td>判定</td></tr></thead>
           <tbody>
             <tr>
-              <td style="${tableCellStyle}">組間</td><td style="${tableCellStyle}">${formatVal(analysis.data.ssb)}</td>
-              <td style="${tableCellStyle}">${analysis.data.df1}</td><td style="${tableCellStyle}">${formatVal(analysis.data.ssb / analysis.data.df1)}</td>
-              <td style="${tableCellStyle}">${formatVal(resA.F)}</td><td style="${tableCellStyle}">${formatP(resA.p)}</td>
-              <td style="${tableCellStyle}">${getFCritHelper(resA.df1, resA.df2)}</td><td style="${tableCellStyle}">${getFlag(resA.p)}</td>
+              <td style="${tableCellStyle}">組間</td>
+              <td style="${tableCellStyle}">${formatVal(analysis.data.ssb)}</td>
+              <td style="${tableCellStyle}">${analysis.data.df1}</td>
+              <td style="${tableCellStyle}">${formatVal(analysis.data.ssb / analysis.data.df1)}</td>
+              <td style="${tableCellStyle}">${formatVal(resA.F)}</td>
+              <td style="${tableCellStyle}">${formatP(resA.p)}</td>
+              <td style="${tableCellStyle}">${getFCritHelper(resA.df1, resA.df2)}</td>
+              <td style="${tableCellStyle}">${getFlag(resA.p)}</td>
             </tr>
-            <tr style="background:#fafafa;"><td style="${tableCellStyle}">組內</td><td style="${tableCellStyle}">${formatVal(analysis.data.ssw)}</td>
-              <td style="${tableCellStyle}">${analysis.data.df2}</td><td style="${tableCellStyle}">${formatVal(analysis.data.ssw / analysis.data.df2)}</td>
+            <tr style="background:#fafafa;">
+              <td style="${tableCellStyle}">組內</td>
+              <td style="${tableCellStyle}">${formatVal(analysis.data.ssw)}</td>
+              <td style="${tableCellStyle}">${analysis.data.df2}</td>
+              <td style="${tableCellStyle}">${formatVal(analysis.data.ssw / analysis.data.df2)}</td>
               <td colspan="4" style="${tableCellStyle}">---</td>
-            </tr></tbody></table>`;
+            </tr>
+          </tbody>
+        </table>`;
       break;
   }
 
