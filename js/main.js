@@ -1,8 +1,11 @@
+/**
+ * main.js - 進階統計與趨勢系統核心邏輯 (修復完整版)
+ */
+
 function go() {
+  // --- 1. 初始化與清空舊圖表 ---
   plotlyCharts.forEach((id) => {
-    try {
-      Plotly.purge(id);
-    } catch (e) { }
+    try { Plotly.purge(id); } catch (e) { }
   });
   plotlyCharts = [];
   capChartInstances.forEach((c) => c.destroy());
@@ -19,6 +22,7 @@ function go() {
   }
   resultDiv.innerHTML = "";
 
+  // --- 2. 數據整理與量體檢查 ---
   const rawActiveGroups = columnsData.filter(
     (c) => !c.isSequence && c.values.some((v) => v !== null && !isNaN(v))
   );
@@ -51,6 +55,7 @@ function go() {
     });
   }
 
+  // --- 3. 讀取 UI 設定 ---
   const mainTitle = document.getElementById("mainTitle").value || "圖表";
   const titleFontSize = parseInt(document.getElementById("titleFontSize").value) || 48;
   const yUnit = document.getElementById("yUnitLeft").value;
@@ -61,71 +66,57 @@ function go() {
   const specLSL = parseFloat(document.getElementById("specLSL").value);
   const specUSL = parseFloat(document.getElementById("specUSL").value);
   const specTarget = parseFloat(document.getElementById("specTarget").value);
-  const specLineStyle = document.getElementById("specLineStyle").value;
   const specLineColor = document.getElementById("specLineColor").value;
+  const specLineStyle = document.getElementById("specLineStyle").value;
   const showBox = document.getElementById("showBox").checked;
   const showDot = document.getElementById("showDot").checked;
   const showCapability = document.getElementById("showCapability").checked;
   const combineGroups = document.getElementById("combineGroups").checked;
   const useBold = document.getElementById("useBoldFont").checked;
-  const yMinInput = document.getElementById("yMinLeft").value;
-  const yMin = yMinInput === "" ? null : parseFloat(yMinInput);
-  const yMaxInput = document.getElementById("yMaxLeft").value;
-  const yMax = yMaxInput === "" ? null : parseFloat(yMaxInput);
+  const yMin = document.getElementById("yMinLeft").value === "" ? null : parseFloat(document.getElementById("yMinLeft").value);
+  const yMax = document.getElementById("yMaxLeft").value === "" ? null : parseFloat(document.getElementById("yMaxLeft").value);
   const yStep = parseFloat(document.getElementById("yStepLeft").value) || null;
   const chartHeight = parseInt(document.getElementById("chartHeight").value) || 600;
   const boxGap = parseFloat(document.getElementById("boxGap").value) || 0.3;
   const exX = parseInt(document.getElementById("extremeXOffsetInput").value) || 32;
   const mmX = parseInt(document.getElementById("meanMedianXOffsetInput").value) || 25;
 
+  // --- 4. 繪製圖表 ---
   const groupNames = activeGroupsForPlot.map((c) => c.name);
   const colors = activeGroupsForPlot.map((c) => c.color);
-  const boxDataArray = activeGroupsForPlot.map((c) =>
-    c.values.filter((v) => v !== null && !isNaN(v))
-  );
+  const boxDataArray = activeGroupsForPlot.map((c) => c.values.filter((v) => v !== null && !isNaN(v)));
 
   if (showBox) {
-    createPlotlyBoxChart(
-      boxDataArray, groupNames, colors, mainTitle, yUnit, "charts",
-      fontSize, lineWidth, pointSize, yMin, yMax, yStep, exX, mmX,
-      document.getElementById("showOutliers").checked,
-      document.getElementById("showAllPoints").checked,
-      statFontSize, chartHeight, boxGap, titleFontSize
-    );
+    createPlotlyBoxChart(boxDataArray, groupNames, colors, mainTitle, yUnit, "charts", fontSize, lineWidth, pointSize, yMin, yMax, yStep, exX, mmX, document.getElementById("showOutliers").checked, document.getElementById("showAllPoints").checked, statFontSize, chartHeight, boxGap, titleFontSize);
   }
 
   const trendConfig = { fontSize, lineWidth, pointSize, chartHeight, useBold, titleFontSize, colors, boxGap };
-  if (document.getElementById("modeLine").checked)
-    createPlotlyTrendChart(activeGroupsForPlot, mainTitle, yUnit, document.getElementById("yUnitRight").value || "", "charts", "line", trendConfig);
-  if (document.getElementById("modeBar").checked)
-    createPlotlyTrendChart(activeGroupsForPlot, mainTitle, yUnit, document.getElementById("yUnitRight").value || "", "charts", "bar", trendConfig);
-  if (document.getElementById("modeMixed").checked)
-    createPlotlyTrendChart(activeGroupsForPlot, mainTitle, yUnit, document.getElementById("yUnitRight").value || "", "charts", "mixed", trendConfig);
+  if (document.getElementById("modeLine").checked) createPlotlyTrendChart(activeGroupsForPlot, mainTitle, yUnit, document.getElementById("yUnitRight").value || "", "charts", "line", trendConfig);
+  if (document.getElementById("modeBar").checked) createPlotlyTrendChart(activeGroupsForPlot, mainTitle, yUnit, document.getElementById("yUnitRight").value || "", "charts", "bar", trendConfig);
+  if (document.getElementById("modeMixed").checked) createPlotlyTrendChart(activeGroupsForPlot, mainTitle, yUnit, document.getElementById("yUnitRight").value || "", "charts", "mixed", trendConfig);
 
   if (showDot) {
     const dotData = activeGroupsForPlot.map((g) => ({ label: g.name, values: g.values.filter((v) => v !== null && !isNaN(v)) }));
     createClassicDotPlot(dotData, colors, mainTitle, yUnit, container, fontSize, yStep, document.getElementById("showGrid").checked, lineWidth, useBold, chartHeight, titleFontSize);
   }
 
+  // --- 5. 執行進階統計檢定 ---
   if (document.getElementById("showPValue")?.checked || document.getElementById("showPairedP")?.checked) {
     const isTwoWay = rawActiveGroups.every((g) => g.name.includes("_"));
     if (isTwoWay && !document.getElementById("showPairedP")?.checked) {
       const allNames = rawActiveGroups.map(g => g.name.split("_"));
-      const extractFactorAndLevels = (nameParts, index) => {
-        const levels = nameParts.map(p => p[index] || "");
-        let firstStr = levels[0] || "";
-        let commonPrefix = "";
-        for (let i = 0; i < firstStr.length; i++) {
-          let char = firstStr[i];
-          if (levels.every(s => s[i] === char)) commonPrefix += char; else break;
+      const extractFactor = (parts, idx) => {
+        let levels = parts.map(p => p[idx] || "");
+        let common = "";
+        for (let i = 0; i < (levels[0] || "").length; i++) {
+          if (levels.every(s => s[i] === levels[0][i])) common += levels[0][i]; else break;
         }
-        return { factor: commonPrefix.trim() || `因子 ${index + 1}`, cleanLevels: levels.map(s => s.replace(commonPrefix, "").trim() || s) };
+        return { factor: common.trim() || `因子 ${idx + 1}`, levels: levels.map(s => s.replace(common, "").trim() || s) };
       };
-      const resA = extractFactorAndLevels(allNames, 0);
-      const resB = extractFactorAndLevels(allNames, 1);
-      const twoWayInput = rawActiveGroups.map((g, idx) => ({ f1: resA.cleanLevels[idx], f2: resB.cleanLevels[idx], values: g.values.filter((v) => v !== null && !isNaN(v)) }));
-      renderTwoWayTable(twoWayAnova(twoWayInput), resA.factor, resB.factor);
-      createInteractionPlot(twoWayInput, resA.factor, resB.factor, mainTitle, yUnit, "charts", { fontSize, lineWidth, pointSize, chartHeight, useBold, titleFontSize });
+      const fA = extractFactor(allNames, 0), fB = extractFactor(allNames, 1);
+      const input = rawActiveGroups.map((g, i) => ({ f1: fA.levels[i], f2: fB.levels[i], values: g.values.filter(v => v != null && !isNaN(v)) }));
+      renderTwoWayTable(twoWayAnova(input), fA.factor, fB.factor);
+      createInteractionPlot(input, fA.factor, fB.factor, mainTitle, yUnit, "charts", { fontSize, lineWidth, pointSize, chartHeight, useBold, titleFontSize });
     } else {
       performAdvancedStats(rawActiveGroups, specTarget);
     }
@@ -205,30 +196,36 @@ function performAdvancedStats(activeGroups, targetValue) {
     const pStr = p.toFixed(5);
     return p < 0.05 ? `<b style="color:#c0392b;">${pStr}</b>` : pStr;
   };
+
   const getTCritHelper = (df, alpha = 0.05, tails = 2) => {
-    if (typeof tCDF !== 'function') return "---";
+    if (typeof tCDF !== 'function' || df <= 0) return "---";
     let target = tails === 2 ? 1 - alpha / 2 : 1 - alpha;
-    let low = 0, high = 100; // T值通常在此範圍
-    for (let i = 0; i < 20; i++) { // 二分搜尋提高精度
+    let low = 0, high = 100;
+    for (let i = 0; i < 20; i++) {
       let mid = (low + high) / 2;
       if (tCDF(mid, df) < target) low = mid; else high = mid;
     }
     return high.toFixed(4);
   };
-  const formatVal = (v) => (v === undefined || isNaN(v) ? "---" : v.toFixed(4));
-  const getFlag = (p) => (p < 0.05 ? `<span style="color:#c0392b; font-weight:bold;">🚩 顯著差異</span>` : `<span style="color:#7f8c8d;">不顯著</span>`);
+
   const getFCritHelper = (df1, df2) => {
-    if (typeof fCDF !== 'function') return "---";
+    if (typeof fCDF !== 'function' || df1 <= 0 || df2 <= 0) return "---";
     let low = 0, high = 1000;
-    for (let i = 0; i < 20; i++) { let mid = (low + high) / 2; if (1 - fCDF(mid, df1, df2) > 0.05) low = mid; else high = mid; }
+    for (let i = 0; i < 20; i++) {
+      let mid = (low + high) / 2;
+      if (1 - fCDF(mid, df1, df2) > 0.05) low = mid; else high = mid;
+    }
     return high.toFixed(4);
   };
+
+  const formatVal = (v) => (v === undefined || isNaN(v) ? "---" : v.toFixed(4));
+  const getFlag = (p) => (p < 0.05 ? `<span style="color:#c0392b; font-weight:bold;">🚩 顯著差異</span>` : `<span style="color:#7f8c8d;">不顯著</span>`);
 
   const tableHeaderStyle = "background:#f2f2f2; border:1px solid #d1d3d1; padding:15px; text-align:left; font-weight:bold; font-size:24px;";
   const tableCellStyle = "border:1px solid #d1d3d1; padding:15px; font-size:24px;";
 
   let html = `<div style='font-family: "Calibri", "Microsoft JhengHei", sans-serif; color: #333;'>`;
-  html += `<h2 style="color: #1f4e78; border-bottom: 4px solid #1f4e78; padding-bottom: 12px; font-size: 28px; margin-bottom: 20px;">📊 統計分析報告</h2>`;
+  html += `<h2 style="color: #1f4e78; border-bottom: 4px solid #1f4e78; padding-bottom: 12px; font-size: 32px; margin-bottom: 20px;">📊 統計分析報告</h2>`;
 
   switch (analysis.type) {
     case "ONE_SAMPLE_T":
@@ -236,18 +233,21 @@ function performAdvancedStats(activeGroups, targetValue) {
       finalP = analysis.data.p;
       html += `<p style="font-size: 24px;">檢定類型：<b>${testMethodName}</b></p>
         <table style="width:100%; border-collapse: collapse;">
-          <thead><tr style="${tableHeaderStyle}"><td>檢定項</td><td>N</td><td>平均值</td><td>目標值</td><td>T</td><td>df</td><td>P-Value</td><td>判定</td></tr></thead>
+          <thead><tr style="${tableHeaderStyle}"><td>檢定項</td><td>N</td><td>平均值</td><td>T</td><td>df</td><td>P-Value</td><td>單尾臨界</td><td>雙尾臨界</td><td>判定</td></tr></thead>
           <tbody><tr>
             <td style="${tableCellStyle}">${groupNames[0]}</td><td style="${tableCellStyle}">${analysis.data.n}</td>
-            <td style="${tableCellStyle}">${formatVal(analysis.data.mean)}</td><td style="${tableCellStyle}">${targetValue}</td>
-            <td style="${tableCellStyle}">${formatVal(analysis.data.t)}</td><td style="${tableCellStyle}">${analysis.data.df}</td>
-            <td style="${tableCellStyle}">${formatP(analysis.data.p)}</td><td style="${tableCellStyle}">${getFlag(analysis.data.p)}</td>
+            <td style="${tableCellStyle}">${formatVal(analysis.data.mean)}</td><td style="${tableCellStyle}">${formatVal(analysis.data.t)}</td>
+            <td style="${tableCellStyle}">${analysis.data.df}</td><td style="${tableCellStyle}">${formatP(analysis.data.p)}</td>
+            <td style="${tableCellStyle}">${getTCritHelper(analysis.data.df, 0.05, 1)}</td>
+            <td style="${tableCellStyle}">${getTCritHelper(analysis.data.df, 0.05, 2)}</td>
+            <td style="${tableCellStyle}">${getFlag(analysis.data.p)}</td>
           </tr></tbody></table>`;
       break;
 
     case "PAIRED_T":
     case "INDEPENDENT_T":
       const d1 = logicalGroups[groupNames[0]], d2 = logicalGroups[groupNames[1]];
+      let diagInfo = "";
       if (analysis.type === "PAIRED_T") {
         testMethodName = "成對樣本 T 檢定";
         finalP = analysis.data.p;
@@ -257,20 +257,16 @@ function performAdvancedStats(activeGroups, targetValue) {
         testMethodName = lev.isHomogeneous ? "獨立樣本 T 檢定 (等變異)" : "Welch's T 檢定 (不等變異)";
         analysis.data = tRes;
         finalP = tRes.p;
-        html += `<p style="font-size: 20px; color: #666;">變異數齊一性檢定Levene's Test (Brown-Forsythe) P: ${lev.p.toFixed(4)}，判定：${lev.isHomogeneous ? '齊一' : '不齊一'}</p>`;
+        diagInfo = `<span style="font-size: 20px; color: #666;"> (Levene's Brown-Forsythe Test P: ${lev.p.toFixed(4)}，判定：${lev.isHomogeneous ? '齊一' : '不齊一'})</span>`;
       }
       const pTwoTailed = analysis.data.p;
-      const pOneTailed = pTwoTailed / 2; // 單尾 P 值為雙尾的一半
-      html += `<p style="font-size: 24px;">檢定類型：<b>${testMethodName}</b></p>
+      const pOneTailed = pTwoTailed / 2;
+
+      html += `<p style="font-size: 24px;">檢定類型：<b>${testMethodName}</b>${diagInfo}</p>
     <table style="width:100%; border-collapse: collapse;">
       <thead>
         <tr style="${tableHeaderStyle}">
-          <td>比較組別</td>
-          <td>T 統計量</td>
-          <td>df</td>
-          <td>單尾 P-Value</td>
-          <td>雙尾 P-Value</td>
-          <td>判定 (雙尾)</td>
+          <td>比較組別</td><td>T 統計量</td><td>df</td><td>單尾 P</td><td>雙尾 P</td><td>單尾臨界</td><td>雙尾臨界</td><td>判定</td>
         </tr>
       </thead>
       <tbody>
@@ -280,6 +276,8 @@ function performAdvancedStats(activeGroups, targetValue) {
           <td style="${tableCellStyle}">${analysis.data.df.toFixed(2)}</td>
           <td style="${tableCellStyle}">${formatP(pOneTailed)}</td>
           <td style="${tableCellStyle}">${formatP(pTwoTailed)}</td>
+          <td style="${tableCellStyle}">${getTCritHelper(analysis.data.df, 0.05, 1)}</td>
+          <td style="${tableCellStyle}">${getTCritHelper(analysis.data.df, 0.05, 2)}</td>
           <td style="${tableCellStyle}">${getFlag(pTwoTailed)}</td>
         </tr>
       </tbody>
@@ -288,46 +286,33 @@ function performAdvancedStats(activeGroups, targetValue) {
 
     case "ANOVA":
       const groupsArr = groupNames.map(n => logicalGroups[n]);
-      const levA = leveneTest(groupsArr); // 執行變異數齊一性檢定
-      const useWelch = !levA.isHomogeneous; // 判定是否不齊一
-      const resA = useWelch ? welchAnova(groupsArr) : analysis.data; // 選擇對應檢定方法
-
+      const levA = leveneTest(groupsArr);
+      const useWelch = !levA.isHomogeneous;
+      const resA = useWelch ? welchAnova(groupsArr) : analysis.data;
       testMethodName = useWelch ? "Welch's ANOVA" : "One-way ANOVA";
       finalP = resA.p;
 
-      // 組合顯示標題與診斷資訊
       html += `<p style="font-size: 24px;">檢定類型：<b>${testMethodName}</b> 
                <span style="font-size: 20px; color: #666;">
-               (變異數齊一性檢定 Levene's Test (Brown-Forsythe) P: ${levA.p.toFixed(4)}，
-               判定：${levA.isHomogeneous ? '齊一' : '不齊一'})</span></p>
+               (Levene's Brown-Forsythe Test P: ${levA.p.toFixed(4)}，判定：${levA.isHomogeneous ? '齊一' : '不齊一'})</span></p>
         <table style="width:100%; border-collapse: collapse;">
           <thead><tr style="${tableHeaderStyle}"><td>變異來源</td><td>SS</td><td>df</td><td>MS</td><td>F</td><td>P-value</td><td>F crit</td><td>判定</td></tr></thead>
           <tbody>
             <tr>
-              <td style="${tableCellStyle}">組間</td>
-              <td style="${tableCellStyle}">${formatVal(analysis.data.ssb)}</td>
-              <td style="${tableCellStyle}">${analysis.data.df1}</td>
-              <td style="${tableCellStyle}">${formatVal(analysis.data.ssb / analysis.data.df1)}</td>
-              <td style="${tableCellStyle}">${formatVal(resA.F)}</td>
-              <td style="${tableCellStyle}">${formatP(resA.p)}</td>
-              <td style="${tableCellStyle}">${getFCritHelper(resA.df1, resA.df2)}</td>
-              <td style="${tableCellStyle}">${getFlag(resA.p)}</td>
+              <td style="${tableCellStyle}">組間</td><td style="${tableCellStyle}">${formatVal(analysis.data.ssb)}</td>
+              <td style="${tableCellStyle}">${analysis.data.df1}</td><td style="${tableCellStyle}">${formatVal(analysis.data.ssb / analysis.data.df1)}</td>
+              <td style="${tableCellStyle}">${formatVal(resA.F)}</td><td style="${tableCellStyle}">${formatP(resA.p)}</td>
+              <td style="${tableCellStyle}">${getFCritHelper(resA.df1, resA.df2)}</td><td style="${tableCellStyle}">${getFlag(resA.p)}</td>
             </tr>
-            <tr style="background:#fafafa;">
-              <td style="${tableCellStyle}">組內</td>
-              <td style="${tableCellStyle}">${formatVal(analysis.data.ssw)}</td>
-              <td style="${tableCellStyle}">${analysis.data.df2}</td>
-              <td style="${tableCellStyle}">${formatVal(analysis.data.ssw / analysis.data.df2)}</td>
+            <tr style="background:#fafafa;"><td style="${tableCellStyle}">組內</td><td style="${tableCellStyle}">${formatVal(analysis.data.ssw)}</td>
+              <td style="${tableCellStyle}">${analysis.data.df2}</td><td style="${tableCellStyle}">${formatVal(analysis.data.ssw / analysis.data.df2)}</td>
               <td colspan="4" style="${tableCellStyle}">---</td>
-            </tr>
-          </tbody>
-        </table>`;
+            </tr></tbody></table>`;
       break;
   }
 
-  // 事後檢定顯示邏輯
   if (analysis.postHoc && analysis.postHoc.length > 0) {
-    html += `<h3 style="color: #1f4e78; margin-top:20px;">🔍 事後檢定 (Tukey HSD)</h3>
+    html += `<h3 style="color: #1f4e78; margin-top:25px; font-size: 28px;">🔍 事後檢定 (Tukey HSD)</h3>
       <table style="width:100%; border-collapse: collapse;">
         <thead><tr style="${tableHeaderStyle}"><td>比較對象</td><td>差異值</td><td>Q 統計量</td><td>判定</td></tr></thead>
         <tbody>`;
@@ -338,11 +323,11 @@ function performAdvancedStats(activeGroups, targetValue) {
     html += `</tbody></table>`;
   }
 
-  html += `<div style="margin-top:30px; padding:25px; background:#f4f7f9; border-left:10px solid #2980b9;">
+  html += `<div style="margin-top:35px; padding:25px; background:#f4f7f9; border:1px solid #d1d3d1;">
             <b style="font-size:28px; color:#1f4e78;">📝 分析結論：</b><br>
             <p style="margin-top:15px; line-height:1.8; font-size:24px;">
               檢定 P-Value 為 <b>${finalP.toFixed(5)}</b>。在 α=0.05 顯著水準下，
-              ${finalP < 0.05 ? `<span style="color:#c0392b;"><b>拒絕虛無假設</b>。組別間存在顯著差異。</span>` : `<span><b>無法拒絕虛無假設</b>。組別間無顯著差異。</span>`}
+              ${finalP < 0.05 ? `<span style="color:#c0392b;"><b>拒絕虛無假設</b>。結果顯示不同組別之間存在顯著差異。</span>` : `<span><b>無法拒絕虛無假設</b>。目前數據不足以證明組別之間存在顯著差異。</span>`}
             </p></div></div>`;
   resultDiv.style.display = "block";
   resultDiv.innerHTML = html;
@@ -368,16 +353,20 @@ function renderTwoWayTable(res, nameA, nameB) {
   const formatP = (p) => p < 0.05 ? `<b style="color:#c0392b;">${p < 0.0001 ? '&lt; 0.0001' : p.toFixed(5)}</b>` : p.toFixed(5);
   const formatVal = (v) => (v === undefined || isNaN(v) ? "---" : v.toFixed(4));
   const getFlag = (p) => p < 0.05 ? `<span style="color:#c0392b; font-weight:bold;">🚩 顯著</span>` : `<span style="color:#7f8c8d;">不顯著</span>`;
+
   const getFCrit = (df1, df2) => {
+    if (typeof fCDF !== 'function' || df1 <= 0 || df2 <= 0) return "---";
     let low = 0, high = 1000;
     for (let i = 0; i < 20; i++) { let mid = (low + high) / 2; if (1 - fCDF(mid, df1, df2) > 0.05) low = mid; else high = mid; }
     return high.toFixed(4);
   };
+
   const msA = res.factorA.f * res.error.ms, msB = res.factorB.f * res.error.ms, msAB = res.interaction.f * res.error.ms;
   const tableHeaderStyle = "background:#f2f2f2; border:1px solid #d1d3d1; padding:15px; font-weight:bold; font-size:24px;";
   const tableCellStyle = "border:1px solid #d1d3d1; padding:15px; font-size:24px;";
+
   let html = `<div style='font-family: "Calibri", "Microsoft JhengHei", sans-serif; padding:40px; background:#fff;'>`;
-  html += `<h2 style="color: #1f4e78; border-bottom: 4px solid #1f4e78; font-size: 28px;">📊 雙因子變異數分析報告</h2>`;
+  html += `<h2 style="color: #1f4e78; border-bottom: 4px solid #1f4e78; font-size: 32px; margin-bottom: 20px;">📊 雙因子變異數分析報告</h2>`;
   html += `<table style="width:100%; border-collapse: collapse; margin-top:20px;">
       <thead><tr style="${tableHeaderStyle}"><td>來源</td><td>SS</td><td>df</td><td>MS</td><td>F</td><td>P-value</td><td>F crit</td><td>判定</td></tr></thead>
       <tbody>
