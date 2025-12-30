@@ -100,7 +100,7 @@ button:active {
   background: #e67e22;
 }
 
-details > summary {
+details>summary {
   list-style: none;
   margin-bottom: 10px;
   cursor: pointer;
@@ -110,7 +110,7 @@ details > summary {
   padding: 5px;
 }
 
-details > summary::-webkit-details-marker {
+details>summary::-webkit-details-marker {
   display: none;
 }
 
@@ -125,11 +125,15 @@ details > summary::-webkit-details-marker {
 
 .settings-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr); /* 鎖定四欄 */
-  gap: 15px; /* 縮小間距 */
+  grid-template-columns: repeat(4, 1fr);
+  /* 鎖定四欄 */
+  gap: 15px;
+  /* 縮小間距 */
   margin-top: 15px;
-  align-items: stretch; /* 確保四個卡片高度一致 */
+  align-items: stretch;
+  /* 確保四個卡片高度一致 */
 }
+
 /* 讓 Y 軸最小/最大那一排更整齊 */
 .form-grid.cols-3 {
   grid-template-columns: repeat(3, 1fr);
@@ -144,11 +148,14 @@ details > summary::-webkit-details-marker {
 .control-card {
   background: #fdfdfd;
   border-radius: 12px;
-  padding: 0; /* 改由內部 padding 控制 */
+  padding: 0;
+  /* 改由內部 padding 控制 */
   border: 1px solid #e2e8f0;
-  overflow: hidden; /* 確保頂部邊條圓角 */
+  overflow: hidden;
+  /* 確保頂部邊條圓角 */
   transition: all 0.3s ease;
 }
+
 .control-card:hover {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   border-color: #cbd5e1;
@@ -263,21 +270,25 @@ select:focus {
   background: #eff6ff;
   color: #1e40af;
 }
+
 .title-red {
   border-top: 5px solid #ef4444;
   background: #fef2f2;
   color: #991b1b;
 }
+
 .title-pink {
   border-top: 5px solid #ec4899;
   background: #fdf2f8;
   color: #9d174d;
 }
+
 .title-yellow {
   border-top: 5px solid #eab308;
   background: #fefce8;
   color: #854d0e;
 }
+
 #tableEditorSection {
   background: white;
   padding: 20px;
@@ -593,21 +604,26 @@ select:focus {
 
 /* 針對統計報告區域的整體字體調整 */
 #statisticsResult {
-  font-size: 20px; /* 整體字體調大 (原本約 16px) */
-  line-height: 1.6; /* 增加行高，閱讀更舒適 */
-  color: #2c3e50; /* 深灰色字體，專業感較強 */
-  border-left: 10px solid #e67e22; /* 強化橘色邊條 */
+  font-size: 24px;
+  /* 整體字體調大 (原本約 16px) */
+  line-height: 1.6;
+  /* 增加行高，閱讀更舒適 */
+  color: #2c3e50;
+  /* 深灰色字體，專業感較強 */
+  border-left: none;
 }
 
 /* 針對報告內部的標題或重點文字 */
 .stats-report strong {
-  font-size: 24px; /* 標題字體更大 */
-  color: #d35400; /* 橘色強調 */
+  font-size: 28px;
+  /* 標題字體更大 */
+  color: #d35400;
+  /* 橘色強調 */
 }
 
 /* 針對 P 值數值加粗 */
 .stats-report b {
-  font-size: 22px;
+  font-size: 26px;
 }
 
 .stats-report {
