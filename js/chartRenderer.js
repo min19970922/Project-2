@@ -117,6 +117,32 @@ function calculateBinWidth(data) {
   return 2 * iqr * Math.pow(n, -1 / 3);
 }
 
+function deleteOutlierPoint(groupIndexOrName, value) {
+  // 1. 透過名稱找到對應的數據欄位索引
+  let colIndex = columnsData.findIndex((c) => c.name === groupIndexOrName);
+
+  if (colIndex > -1 && columnsData[colIndex]) {
+    const arr = columnsData[colIndex].values;
+    let idxToRemove = -1;
+
+    // 2. 設定極小誤差範圍比對數值，找出原始數據中的點
+    let minDiff = 0.000001;
+    for (let i = 0; i < arr.length; i++) {
+      if (arr[i] !== null && Math.abs(arr[i] - value) < minDiff) {
+        idxToRemove = i;
+        break;
+      }
+    }
+
+    // 3. 從原始數據中剔除並觸發全局重新計算 (這會更新統計報告與圖表)
+    if (idxToRemove > -1) {
+      columnsData[colIndex].values.splice(idxToRemove, 1);
+      renderTable(); // 更新左側表格
+      go();          // 重新執行統計計算與繪圖
+    }
+  }
+}
+
 
 function createPlotlyBoxChart(
   statsDataArray, // ✨ 全量原始數據 (計算 P-Value 用，保證精準)
@@ -281,20 +307,45 @@ function createPlotlyBoxChart(
   const tickText = groupNames.map(n => toBold(String(n).split("/").pop().replace(/[\{\｛].+?[\}\｝]/g, "").trim()));
 
   Plotly.newPlot(plotId, traces, {
-    height: chartHeight, boxgap: boxGap, font: { family: '"Microsoft JhengHei", Calibri' },
-    margin: { l: 150, r: 100, t: 30, b: 80 }, paper_bgcolor: "#F7F7F7", plot_bgcolor: "white",
+    height: chartHeight,
+    boxgap: boxGap,
+    font: { family: '"Microsoft JhengHei", Calibri' },
+    margin: { l: 150, r: 100, t: 30, b: 80 },
+    paper_bgcolor: "#F7F7F7",
+    plot_bgcolor: "white",
     yaxis: {
-      title: { text: toBold(yUnit), font: { size: fontSize + 12 }, standoff: -10 },
-      range: [min - pad, max + pad], showline: true, mirror: true, ticks: "outside", tickwidth: lineWidth, linewidth: lineWidth,
+      title: { text: toBold(yUnit), font: { size: fontSize + 12 }, standoff: 10 }, // ✨ standoff 改為正數
+      range: [min - pad, max + pad],
+      showline: true, mirror: true, ticks: "outside",
+      tickwidth: lineWidth, linewidth: lineWidth,
       gridcolor: document.getElementById("showGrid")?.checked ? "#aaa" : "rgba(0,0,0,0)",
-      dtick: yStep || undefined, tickfont: { size: fontSize + 6 }, zeroline: false
+      dtick: yStep || undefined,
+      tickfont: { size: fontSize + 6 },
+      zeroline: false
     },
     xaxis: {
-      showline: true, mirror: true, linewidth: lineWidth, tickmode: "array", tickvals: groupNames.map((_, i) => i), ticktext: tickText,
-      tickfont: { size: fontSize }, automargin: true,
+      showline: true, mirror: true, linewidth: lineWidth,
+      tickmode: "array", tickvals: groupNames.map((_, i) => i),
+      ticktext: tickText,
+      tickfont: { size: fontSize },
+      automargin: true,
     },
-    annotations: annotations, shapes: shapes, showlegend: false,
-  }, { responsive: true, displayModeBar: false });
+    annotations: annotations,
+    shapes: shapes,
+    showlegend: false,
+  }, { responsive: true, displayModeBar: false }).then((p) => {
+    // ✨ 新增點擊監聽器：點擊資料點時紀錄組別與數值
+    p.on("plotly_click", (data) => {
+      if (data.points.length > 0) {
+        const point = data.points[0];
+        // 紀錄最後點擊的資訊，供 Delete 鍵使用
+        lastClickedPoint = {
+          groupName: groupNames[point.x],
+          value: point.y
+        };
+      }
+    });
+  });
 }
 
 function createClassicDotPlot(
