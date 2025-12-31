@@ -87,7 +87,29 @@ function go() {
   const boxDataArray = activeGroupsForPlot.map((c) => c.values.filter((v) => v !== null && !isNaN(v)));
 
   if (showBox) {
-    createPlotlyBoxChart(boxDataArray, groupNames, colors, mainTitle, yUnit, "charts", fontSize, lineWidth, pointSize, yMin, yMax, yStep, exX, mmX, document.getElementById("showOutliers").checked, document.getElementById("showAllPoints").checked, statFontSize, chartHeight, boxGap, titleFontSize);
+    createPlotlyBoxChart(
+      rawActiveGroups.map(c => c.values),
+      boxDataArray,
+      groupNames,
+      colors,
+      mainTitle,
+      yUnit,
+      "charts", // <--- 確保這裡傳入的是 HTML id "charts"
+      fontSize,
+      lineWidth,
+      pointSize,
+      yMin,
+      yMax,
+      yStep,
+      exX,
+      mmX,
+      document.getElementById("showOutliers").checked,
+      document.getElementById("showAllPoints").checked,
+      statFontSize,
+      chartHeight,
+      boxGap,
+      titleFontSize
+    );
   }
 
   const trendConfig = { fontSize, lineWidth, pointSize, chartHeight, useBold, titleFontSize, colors, boxGap };

@@ -119,7 +119,8 @@ function calculateBinWidth(data) {
 
 
 function createPlotlyBoxChart(
-  boxDataArray,
+  statsDataArray, // ✨ 全量數據 (計算 P-Value 用)
+  boxDataArray,   // ✨ 抽樣數據 (繪圖用，維持效能)
   groupNames,
   colors,
   title,
@@ -140,37 +141,47 @@ function createPlotlyBoxChart(
   boxGap,
   titleFontSize
 ) {
+  const parentContainer = document.getElementById(containerId);
+  if (!parentContainer) return;
+
   const div = document.createElement("div");
   div.className = "chart-container";
   const plotId = "plotly-box-" + Date.now();
+
   const showMean = document.getElementById("showMean")?.checked ?? false;
   const showMedian = document.getElementById("showMedian")?.checked ?? false;
   const showExtremes = document.getElementById("showExtremes")?.checked ?? false;
   const useBold = document.getElementById("useBoldFont")?.checked ?? false;
-  const showPValueCheckbox = document.getElementById("showPValue")?.checked ?? false; // ✨ P-Value 開關
+  const showPValueCheckbox = document.getElementById("showPValue")?.checked ?? false;
 
-  // --- 1. 計算 P-Value 統計摘要 (連動 statFontSize) ---
+  // --- 1. 計算 P-Value 摘要框 (對齊 Minitab SOP) ---
   let statsHeaderBoxHtml = "";
-  if (showPValueCheckbox) {
-    const logicalGroups = {};
-    let totalN = 0;
-    groupNames.forEach((name, i) => {
-      const prefix = String(name).split("/")[0].trim();
-      if (!logicalGroups[prefix]) logicalGroups[prefix] = [];
-      const validData = boxDataArray[i].filter(v => v !== null && !isNaN(v));
-      logicalGroups[prefix].push(...validData);
-      totalN += validData.length;
-    });
+  let finalAnalysis = null;
 
-    const targetVal = parseFloat(document.getElementById("specTarget").value);
+  if (showPValueCheckbox && statsDataArray && statsDataArray.length >= 2) {
     const isPaired = document.getElementById("showPairedP")?.checked;
-    const analysis = calculateAdvancedStats(logicalGroups, targetVal, isPaired);
+    // Step 1: 診斷變異數齊一性 (Levene's Test)
+    const lev = leveneTest(statsDataArray);
 
-    if (analysis && analysis.data) {
-      const d = analysis.data;
-      const isANOVA = analysis.type === "ANOVA";
+    if (groupNames.length === 2 && !isPaired) {
+      // Step 2: 選擇 Student's T 或 Welch's T
+      finalAnalysis = {
+        type: lev.isHomogeneous ? "Student's T" : "Welch's T",
+        data: independentTTest(statsDataArray[0], statsDataArray[1], lev.isHomogeneous)
+      };
+    } else if (groupNames.length >= 3) {
+      // Step 2: 選擇 One-Way 或 Welch ANOVA
+      finalAnalysis = lev.isHomogeneous
+        ? { type: "One-Way ANOVA", data: oneWayAnova(statsDataArray) }
+        : { type: "Welch ANOVA", data: welchAnova(statsDataArray) };
+    }
+
+    if (finalAnalysis && finalAnalysis.data) {
+      const d = finalAnalysis.data;
       const headerFS = Math.round(statFontSize * 1.1 - 5);
       const contentFS = statFontSize - 5;
+      const pValStr = d.p < 0.001 ? "< 0.001" : d.p.toFixed(4);
+      const dfDisplay = d.df2 ? `${d.df1.toFixed(0)}, ${d.df2.toFixed(2)}` : (d.df ? d.df.toFixed(1) : '---');
 
       statsHeaderBoxHtml = `
         <div style="border: 2px solid #2980b9; border-radius: 8px; padding: 5px 8px; 
@@ -178,16 +189,16 @@ function createPlotlyBoxChart(
                     width: fit-content; min-width: 150px; white-space: nowrap;
                     margin-top: -40px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05); pointer-events: none;">
             <div style="font-weight:bold; color:#1f4e78; border-bottom:1.5px solid #2980b9; margin-bottom:4px; font-size:${headerFS}px;">
-                ${analysis.type} (N=${totalN})
+                ${finalAnalysis.type}
             </div>
             <table style="width: 100%; font-size: ${contentFS}px; border-collapse: collapse;">
                 <tr><td style="color:#666; padding-right:15px;">P-Value</td>
                     <td style="text-align:right; font-weight:bold; color:${d.p < 0.05 ? '#c0392b' : '#2ecc71'}">
-                    ${d.p < 0.001 ? '< 0.001' : d.p.toFixed(4)}</td></tr>
-                <tr><td style="color:#666;">${isANOVA ? 'F' : 'T'} Stat</td>
-                    <td style="text-align:right;">${(isANOVA ? d.F : d.t).toFixed(3)}</td></tr>
+                    ${pValStr}</td></tr>
+                <tr><td style="color:#666;">Stat</td>
+                    <td style="text-align:right;">${(d.F || d.t || 0).toFixed(3)}</td></tr>
                 <tr><td style="color:#666;">df</td>
-                    <td style="text-align:right;">${isANOVA ? `${d.df1},${d.df2}` : (d.df ? d.df.toFixed(1) : '---')}</td></tr>
+                    <td style="text-align:right;">${dfDisplay}</td></tr>
             </table>
         </div>`;
     }
@@ -209,19 +220,17 @@ function createPlotlyBoxChart(
     legendHtml += `
     <div style="display: flex; align-items: center; gap: 6px; flex: 0 0 auto;">
       <span style="display: inline-block; width: 14px; height: 14px; background: ${groupLabels[group]}; border-radius: 3px; border: 1px solid #666;"></span>
-      <span style="font-size: ${fontSize * 0.9}px; font-weight: ${useBold ? "bold" : "normal"}; white-space: nowrap; font-family: 'Microsoft JhengHei', 'Calibri', sans-serif;">${group}</span>
+      <span style="font-size: ${fontSize * 0.75}px; font-weight: ${useBold ? "bold" : "normal"}; white-space: nowrap; font-family: 'Microsoft JhengHei', 'Calibri', sans-serif;">${group}</span>
     </div>`;
   });
 
-  // --- 3. 組合主 HTML (修正 1fr auto 1fr 確保標題置中) ---
+  // --- 3. 組合主 HTML ---
   div.innerHTML = `
     <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin-top: 25px; margin-bottom: 15px; width: 100%;">
-      <div style="padding-left: 20px;">${statsHeaderBoxHtml}</div>
-
+      <div style="padding-left: 20px; display: flex; justify-content: flex-start;">${statsHeaderBoxHtml}</div>
       <h2 style="margin: 0; font-size: ${titleFontSize}px; font-family: 'Microsoft JhengHei'; text-align: center; white-space: nowrap; font-weight: ${useBold ? "bold" : "normal"};">
         ${title}
       </h2>
-
       <div style="display: flex; flex-wrap: wrap; justify-content: flex-end; align-content: center; gap: 8px 12px; max-width: 500px; padding-right: 100px; padding-top: 10px;">
           ${legendHtml}
       </div>
@@ -231,10 +240,10 @@ function createPlotlyBoxChart(
       <button class="s" onclick="downloadBoxChartWithHeader(this, '${title}')">下載圖片</button>
     </div>`;
 
-  document.getElementById(containerId).appendChild(div);
+  parentContainer.appendChild(div);
   plotlyCharts.push(plotId);
 
-  // --- 4. 繪圖參數還原 (包含極值、平均值、中位數、離群值不抖動) ---
+  // --- 4. 建立繪圖 Traces 與 Annotations (還原遺失邏輯) ---
   const traces = [];
   const annotations = [];
   const safeFormat = (val) => val === undefined || isNaN(val) ? "N/A" : Number(val).toFixed(2);
@@ -248,8 +257,7 @@ function createPlotlyBoxChart(
     traces.push({
       y: yData, x: yData.map(() => xIndex), type: "box", name: toBold(String(name)),
       boxpoints: showAllPoints ? "all" : (showOutliers ? "outliers" : false),
-      jitter: showAllPoints ? 0.3 : 0, // ✨ 離群值不抖動，僅全部點模式才抖動
-      pointpos: showAllPoints ? -1.8 : 0,
+      jitter: showAllPoints ? 0.3 : 0, pointpos: showAllPoints ? -1.8 : 0,
       marker: { color: colors[i], size: pointSize + 3 },
       line: { width: lineWidth }, fillcolor: colors[i] + "33",
     });
@@ -269,60 +277,43 @@ function createPlotlyBoxChart(
       if (showMean) annotations.push(createLabel(meanV, "  ", 15, "#000000"));
       if (showMedian) annotations.push(createLabel(medV, "  ", (showMean ? statFontSize * 3.5 : 0) + 15, "#000000"));
       if (showExtremes) {
-        annotations.push({
-          x: xIndex, y: s[s.length - 1], text: toBold("↑ " + safeFormat(s[s.length - 1])),
-          showarrow: false, xanchor: "left", xshift: extremeXOffset,
-          font: { color: "#e74c3c", size: statFontSize, family: "Calibri", weight: useBold ? "bold" : "normal" }
-        });
-        annotations.push({
-          x: xIndex, y: s[0], text: toBold("↓ " + safeFormat(s[0])),
-          showarrow: false, xanchor: "left", xshift: extremeXOffset,
-          font: { color: "#27ae60", size: statFontSize, family: "Calibri", weight: useBold ? "bold" : "normal" }
-        });
+        annotations.push({ x: xIndex, y: s[s.length - 1], text: toBold("↑ " + safeFormat(s[s.length - 1])), showarrow: false, xanchor: "left", xshift: extremeXOffset, font: { color: "#e74c3c", size: statFontSize, family: "Calibri", weight: useBold ? "bold" : "normal" } });
+        annotations.push({ x: xIndex, y: s[0], text: toBold("↓ " + safeFormat(s[0])), showarrow: false, xanchor: "left", xshift: extremeXOffset, font: { color: "#27ae60", size: statFontSize, family: "Calibri", weight: useBold ? "bold" : "normal" } });
       }
     }
   });
 
-  // --- 5. 範圍與樣式 (完全對應舊檔) ---
-  let allVals = [];
-  boxDataArray.forEach((v) => allVals.push(...v));
+  // --- 5. 範圍與樣式 ---
+  let allVals = []; boxDataArray.forEach((v) => allVals.push(...v));
   let min = yMin !== null ? yMin : Math.min(...allVals), max = yMax !== null ? yMax : Math.max(...allVals);
-
   const specLSL = parseFloat(document.getElementById("specLSL").value);
   const specUSL = parseFloat(document.getElementById("specUSL").value);
-  const specTarget = parseFloat(document.getElementById("specTarget").value);
   const specColor = document.getElementById("specLineColor").value;
   const specStyle = document.getElementById("specLineStyle").value === "dashed" ? "dash" : "solid";
   const shapes = [];
 
-  if (!isNaN(specLSL)) { min = Math.min(min, specLSL); shapes.push({ type: "line", xref: "paper", x0: 0, x1: 1, yref: "y", y0: specLSL, y1: specLSL, line: { color: specColor, width: 3, dash: specStyle } }); annotations.push({ y: specLSL, x: 1, xref: "paper", yref: "y", text: toBold("LSL"), showarrow: false, xanchor: "left", yanchor: "middle", xshift: 5, font: { family: "Calibri", size: fontSize + 2, color: specColor, weight: "bold" } }); }
-  if (!isNaN(specUSL)) { max = Math.max(max, specUSL); shapes.push({ type: "line", xref: "paper", x0: 0, x1: 1, yref: "y", y0: specUSL, y1: specUSL, line: { color: specColor, width: 3, dash: specStyle } }); annotations.push({ y: specUSL, x: 1, xref: "paper", yref: "y", text: toBold("USL"), showarrow: false, xanchor: "left", yanchor: "middle", xshift: 5, font: { family: "Calibri", size: fontSize + 2, color: specColor, weight: "bold" } }); }
-  if (!isNaN(specTarget)) { annotations.push({ y: specTarget, x: 1, xref: "paper", yref: "y", text: toBold("Target"), showarrow: false, xanchor: "left", yanchor: "middle", xshift: 5, font: { family: "Calibri", size: fontSize + 2, color: "#27ae60", weight: "bold" } }); }
+  if (!isNaN(specLSL)) { min = Math.min(min, specLSL); shapes.push({ type: "line", xref: "paper", x0: 0, x1: 1, yref: "y", y0: specLSL, y1: specLSL, line: { color: specColor, width: 3, dash: specStyle } }); annotations.push({ y: specLSL, x: 1, xref: "paper", yref: "y", text: toBold("LSL"), showarrow: false, xanchor: "left", xshift: 5, font: { size: fontSize + 2, color: specColor, weight: "bold" } }); }
+  if (!isNaN(specUSL)) { max = Math.max(max, specUSL); shapes.push({ type: "line", xref: "paper", x0: 0, x1: 1, yref: "y", y0: specUSL, y1: specUSL, line: { color: specColor, width: 3, dash: specStyle } }); annotations.push({ y: specUSL, x: 1, xref: "paper", yref: "y", text: toBold("USL"), showarrow: false, xanchor: "left", xshift: 5, font: { size: fontSize + 2, color: specColor, weight: "bold" } }); }
 
   const pad = (max - min) * 0.1 || 1;
-  const tickVals = groupNames.map((_, i) => i);
   const tickText = groupNames.map(n => toBold(String(n).split("/").pop().replace(/[\{\｛].+?[\}\｝]/g, "").trim()));
 
+  // --- 6. 繪製圖表 ---
   Plotly.newPlot(plotId, traces, {
     height: chartHeight, boxgap: boxGap, font: { family: '"Microsoft JhengHei", "Calibri"' },
     margin: { l: 150, r: 100, t: 30, b: 80 }, paper_bgcolor: "#F7F7F7", plot_bgcolor: "white",
     yaxis: {
-      title: { text: toBold(yUnit), font: { size: fontSize + 12 }, standoff: 10 },
+      title: { text: toBold(yUnit), font: { size: fontSize + 12 }, standoff: -10 },
       range: [min - pad, max + pad], showline: true, mirror: true, ticks: "outside", tickwidth: lineWidth, linewidth: lineWidth,
       gridcolor: document.getElementById("showGrid")?.checked ? "#aaa" : "rgba(0,0,0,0)",
-      dtick: yStep || undefined,
-      tickprefix: useBold ? "<b>" : "", ticksuffix: useBold ? "</b>" : "",
-      tickfont: { size: fontSize + 6, weight: useBold ? "bold" : "normal" },
+      dtick: yStep || undefined, tickfont: { size: fontSize + 6 }, zeroline: false
     },
     xaxis: {
-      showline: true, mirror: true, linewidth: lineWidth, tickmode: "array", tickvals: tickVals, ticktext: tickText,
-      tickfont: { size: fontSize, weight: useBold ? "bold" : "normal" },
-      automargin: true,
+      showline: true, mirror: true, linewidth: lineWidth, tickmode: "array", tickvals: groupNames.map((_, i) => i), ticktext: tickText,
+      tickfont: { size: fontSize }, automargin: true,
     },
     annotations: annotations, shapes: shapes, showlegend: false,
-  }, { responsive: true, displayModeBar: false }).then((p) => {
-    p.on("plotly_click", (data) => { if (data.points.length > 0) lastClickedPoint = { groupName: groupNames[data.points[0].x], value: data.points[0].y }; });
-  });
+  }, { responsive: true, displayModeBar: false });
 }
 
 function createClassicDotPlot(
