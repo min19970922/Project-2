@@ -3,6 +3,7 @@
  */
 
 function go() {
+  const scrollPos = window.scrollY;
   // --- 1. 初始化與清空舊圖表 ---
   plotlyCharts.forEach((id) => {
     try { Plotly.purge(id); } catch (e) { }
@@ -51,7 +52,6 @@ function go() {
           values: validVals.filter((_, idx) => idx % step === 0),
         };
       }
-      return group;
     });
   }
 
@@ -162,9 +162,13 @@ function go() {
         let subgroups = [];
         if (mode === "column") subgroups = [d]; else { for (let i = 0; i < d.length; i += size) subgroups.push(d.slice(i, i + size)); }
         renderCapabilityReport(container, d, subgroups, displayName, localConfig);
+
       });
     }
   }
+  requestAnimationFrame(() => {
+    window.scrollTo(0, scrollPos);
+  });
 }
 
 function performAdvancedStats(activeGroups, targetValue) {
