@@ -223,8 +223,7 @@ function createPlotlyBoxChart(
 
   // --- 2. 判斷圖例邏輯 ---
   let hasSlash = groupNames.some(name => String(name).includes("/"));
-  let legendHtml = "";
-
+  let legendItemsHtml = "";
   if (hasSlash) {
     const groupOrder = [];
     const groupLabels = {};
@@ -233,36 +232,37 @@ function createPlotlyBoxChart(
       if (!groupLabels[gName]) { groupOrder.push(gName); groupLabels[gName] = colors[i]; }
     });
 
-    const legendItemsHtml = groupOrder.map((group) => `
-        <div style="display: flex; align-items: center; gap: 6px; flex: 0 0 auto;">
-          <span style="display: inline-block; width: 14px; height: 14px; background: ${groupLabels[group]}; 
-                       border-radius: 3px; border: 1px solid #666; flex-shrink: 0;"></span>
-          <span style="font-size: ${fontSize * 0.75}px; 
-                       font-weight: ${useBold ? "bold" : "normal"}; 
-                       white-space: nowrap; 
-                       font-family: 'Microsoft JhengHei', 'Calibri', sans-serif;">
-            ${group}
-          </span>
-        </div>`).join("");
-
-    legendHtml = `
-      <div style="display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px 15px; width: 100%;">
-        ${legendItemsHtml}
-      </div>`;
+    legendItemsHtml = groupOrder.map(g => `
+      <div style="display: flex; align-items: center; gap: 6px; flex: 0 0 auto; padding: 2px 0;">
+        <span style="display: inline-block; width: 14px; height: 14px; background: ${groupLabels[g]}; border-radius: 3px; border: 1px solid #666; flex-shrink: 0;"></span>
+        <span style="font-size: ${fontSize * 0.75}px; font-weight: ${useBold ? "bold" : "normal"}; white-space: nowrap; font-family: 'Microsoft JhengHei', 'Calibri', sans-serif;">${g}</span>
+      </div>`).join("");
   }
 
-  // --- 3. 生成排版 HTML ---
+  // --- 3. 生成排版 HTML (應用您要求的 CSS 邏輯) ---
   div.innerHTML = `
-    <div style="display: grid; grid-template-columns: 1.2fr auto 1.2fr; align-items: center; margin-top: 25px; margin-bottom: 15px; width: 100%;">
+    <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin-top: 25px; margin-bottom: 15px; width: 100%;">
       <div style="padding-left: 20px; display: flex; justify-content: flex-start;">${statsHeaderBoxHtml}</div>
-      <h2 style="margin: 0; font-size: ${titleFontSize}px; font-family: 'Microsoft JhengHei'; text-align: center; white-space: nowrap; font-weight: ${useBold ? 'bold' : 'normal'};">${title}</h2>
-      <div style="padding-right: 100px; display: flex; justify-content: flex-end; padding-top: 20px;"> 
-          <div style="max-width: 500px; width: fit-content;">
-              ${legendHtml}
-          </div>
+      <h2 style="margin: 0; font-size: ${titleFontSize}px; text-align: center; white-space: nowrap; font-weight: ${useBold ? 'bold' : 'normal'}; font-family: 'Microsoft JhengHei';">${title}</h2>
+      
+      <div style="display: flex; 
+                  flex-wrap: wrap; 
+                  justify-content: flex-start; 
+                  align-content: flex-start;
+                  gap: 8px 15px; 
+                  justify-self: end; 
+                  width: auto; 
+                  max-width: 500px; 
+                  padding-right: 100px; 
+                  padding-top: 20px;
+                  box-sizing: border-box;">
+          ${legendItemsHtml}
       </div>
     </div>
-    <div id="${plotId}" class="plotly-graph-div" style="height:${chartHeight}px;"></div>`;
+    <div id="${plotId}" class="plotly-graph-div" style="height:${chartHeight}px;"></div>
+    <div style="text-align:center;margin:30px;" data-html2canvas-ignore="true">
+      <button class="s" onclick="downloadBoxChartWithHeader(this, '${title}')">下載圖片</button>
+    </div>`;
 
   parentContainer.appendChild(div);
   plotlyCharts.push(plotId);
