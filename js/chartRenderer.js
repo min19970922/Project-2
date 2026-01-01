@@ -179,6 +179,11 @@ function createPlotlyBoxChart(
   const showExtremes = document.getElementById("showExtremes")?.checked ?? false;
   const useBold = document.getElementById("useBoldFont")?.checked ?? false;
   const showPValueCheckbox = document.getElementById("showPValue")?.checked ?? false;
+  const specLSL = parseFloat(document.getElementById("specLSL").value);
+  const specUSL = parseFloat(document.getElementById("specUSL").value);
+  const specTarget = parseFloat(document.getElementById("specTarget").value);
+  const specLineColor = document.getElementById("specLineColor").value || "#e74c3c";
+  const specLineStyle = document.getElementById("specLineStyle").value || "solid";
 
   // --- 1. 使用外部傳入的 analysisResult 生成摘要框 (與下方報告同步) ---
   let statsHeaderBoxHtml = "";
@@ -262,6 +267,28 @@ function createPlotlyBoxChart(
   parentContainer.appendChild(div);
   plotlyCharts.push(plotId);
 
+  const shapes = [];
+  const specLineDash = specLineStyle === "dashed" ? "dash" : "solid";
+  if (!isNaN(specLSL)) shapes.push({ type: 'line', xref: 'paper', x0: 0, x1: 1, yref: 'y', y0: specLSL, y1: specLSL, line: { color: specLineColor, width: 2, dash: specLineDash }, layer: 'above' });
+  if (!isNaN(specUSL)) shapes.push({ type: 'line', xref: 'paper', x0: 0, x1: 1, yref: 'y', y0: specUSL, y1: specUSL, line: { color: specLineColor, width: 2, dash: specLineDash }, layer: 'above' });
+  if (!isNaN(specTarget)) shapes.push({ type: 'line', xref: 'paper', x0: 0, x1: 1, yref: 'y', y0: specTarget, y1: specTarget, line: { color: "#27ae60", width: 2, dash: "dot" }, layer: 'above' });
+
+  // --- 4. 計算手動 Y 軸範圍 (確保線條可見) ---
+  let finalYMin = yMin;
+  let finalYMax = yMax;
+  if (finalYMin === null || finalYMax === null) {
+    let allPoints = boxDataArray.flat().filter(v => v !== null && !isNaN(v));
+    let dMin = allPoints.length > 0 ? Math.min(...allPoints) : 0;
+    let dMax = allPoints.length > 0 ? Math.max(...allPoints) : 100;
+
+    if (!isNaN(specLSL)) dMin = Math.min(dMin, specLSL);
+    if (!isNaN(specUSL)) dMax = Math.max(dMax, specUSL);
+    if (!isNaN(specTarget)) { dMin = Math.min(dMin, specTarget); dMax = Math.max(dMax, specTarget); }
+
+    let margin = (dMax - dMin) * 0.2; // 增加邊距
+    finalYMin = (yMin === null) ? dMin - margin : yMin;
+    finalYMax = (yMax === null) ? dMax + margin : yMax;
+  }
   const traces = [];
   const annotations = [];
   const safeFormat = (val) => val === undefined || isNaN(val) ? "N/A" : Number(val).toFixed(2);
@@ -307,11 +334,11 @@ function createPlotlyBoxChart(
   });
 
   Plotly.newPlot(plotId, traces, {
-    height: chartHeight, boxgap: boxGap, font: { family: '"Microsoft JhengHei", Calibri' },
+    height: chartHeight, boxgap: boxGap, shapes: shapes, font: { family: '"Microsoft JhengHei", Calibri' },
     margin: { l: 150, r: 100, t: 30, b: 80 }, paper_bgcolor: "#F7F7F7", plot_bgcolor: "white",
     yaxis: {
       title: { text: toBold(yUnit), font: { size: fontSize + 12 }, standoff: -10 },
-      range: (yMin !== null && yMax !== null) ? [yMin, yMax] : undefined,
+      range: [finalYMin, finalYMax],
       showline: true, mirror: true, ticks: "outside", tickwidth: lineWidth, linewidth: lineWidth,
       gridcolor: document.getElementById("showGrid")?.checked ? "#aaa" : "rgba(0,0,0,0)",
       dtick: yStep || undefined,
