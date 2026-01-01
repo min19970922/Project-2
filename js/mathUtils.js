@@ -396,45 +396,33 @@ function getAdvancedStatsResult(logicalGroups, targetValue, isPairedMode) {
   return result;
 }
 
-/**
- * 執行 Welch's ANOVA (適用於變異數不齊一的情況)
- */
 function welchAnova(groups) {
   const k = groups.length;
-  const ns = groups.map((g) => g.length);
-  const means = groups.map((g) => getMean(g));
-  const vars = groups.map((g, i) => getVar(g, means[i]));
+  const ns = groups.map(g => g.length);
+  const means = groups.map(g => g.reduce((a, b) => a + b, 0) / g.length);
 
-  // 1. 計算權重 w_i = n_i / s_i^2
+  // 邊界檢查：計算變異數，若為 0 則給予極小值以維持數值穩定
+  const vars = groups.map((g, i) => {
+    const v = g.reduce((acc, val) => acc + Math.pow(val - means[i], 2), 0) / (g.length - 1);
+    return v === 0 ? 1e-10 : v;
+  });
+
   const weights = ns.map((n, i) => n / vars[i]);
   const sumW = weights.reduce((a, b) => a + b, 0);
+  const grandMean = weights.reduce((acc, w, i) => acc + w * means[i], 0) / sumW;
 
-  // 2. 計算加權總平均 Lambda
-  const grandMeanWelch =
-    weights.reduce((acc, w, i) => acc + w * means[i], 0) / sumW;
-
-  // 3. 計算組間平方和與修正項 h_i
   const hi = weights.map((w, i) => Math.pow(1 - w / sumW, 2) / (ns[i] - 1));
   const sumHi = hi.reduce((a, b) => a + b, 0);
 
-  // 4. 計算 Welch F 統計量
-  const top =
-    weights.reduce(
-      (acc, w, i) => acc + w * Math.pow(means[i] - grandMeanWelch, 2),
-      0
-    ) /
-    (k - 1);
-  const bottom = 1 + ((2 * (k - 2)) / (k * k - 1)) * sumHi;
-  const F = top / bottom;
+  const F = (weights.reduce((acc, w, i) => acc + w * Math.pow(means[i] - grandMean, 2), 0) / (k - 1)) /
+    (1 + (2 * (k - 2) / (k * k - 1)) * sumHi);
 
-  // 5. 計算修正後的自由度 df1, df2
   const df1 = k - 1;
   const df2 = (k * k - 1) / (3 * sumHi);
+  const p = 1 - jStat.centralF.cdf(F, df1, df2);
 
-  // 6. 計算 P 值
-  const p = 1 - fCDF(F, df1, df2);
-
-  return { F, p, df1, df2 };
+  // 模擬 Minitab 紀錄中間值供 Debug 使用
+  return { F, p, df1, df2, method: "Welch" };
 }
 
 /**

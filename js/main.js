@@ -88,13 +88,13 @@ function go() {
 
   if (showBox) {
     createPlotlyBoxChart(
-      rawActiveGroups.map(c => c.values),
-      boxDataArray,
+      rawActiveGroups.map(c => c.values.filter(v => v !== null && !isNaN(v))), // 👈 全量數據：統計精確用
+      boxDataArray, // 👈 抽樣數據：繪圖流暢用
       groupNames,
       colors,
       mainTitle,
       yUnit,
-      "charts", // <--- 確保這裡傳入的是 HTML id "charts"
+      "charts",
       fontSize,
       lineWidth,
       pointSize,
@@ -214,25 +214,9 @@ function performAdvancedStats(activeGroups, targetValue) {
     return;
   }
 
-  let finalP = 0;
-  let testMethodName = "";
-
-  const formatP = (p) => {
-    if (p < 0.0001) return `<b style="color:#c0392b;">&lt; 0.0001</b>`;
-    const pStr = p.toFixed(5);
-    return p < 0.05 ? `<b style="color:#c0392b;">${pStr}</b>` : pStr;
-  };
-
-  const getTCritHelper = (df, alpha = 0.05, tails = 2) => {
-    if (typeof tCDF !== 'function' || df <= 0) return "---";
-    let target = tails === 2 ? 1 - alpha / 2 : 1 - alpha;
-    let low = 0, high = 100;
-    for (let i = 0; i < 20; i++) {
-      let mid = (low + high) / 2;
-      if (tCDF(mid, df) < target) low = mid; else high = mid;
-    }
-    return high.toFixed(4);
-  };
+  // --- 1. 輔助工具定義 ---
+  const formatVal = (v) => (v === undefined || isNaN(v) ? "---" : v.toFixed(4));
+  const getFlag = (p) => (p < 0.05 ? `<span style="color:#c0392b; font-weight:bold;">🚩 顯著差異</span>` : `<span style="color:#7f8c8d;">不顯著</span>`);
 
   const getFCritHelper = (df1, df2) => {
     if (typeof fCDF !== 'function' || df1 <= 0 || df2 <= 0) return "---";
@@ -244,121 +228,141 @@ function performAdvancedStats(activeGroups, targetValue) {
     return high.toFixed(4);
   };
 
-  const formatVal = (v) => (v === undefined || isNaN(v) ? "---" : v.toFixed(4));
-  const getFlag = (p) => (p < 0.05 ? `<span style="color:#c0392b; font-weight:bold;">🚩 顯著差異</span>` : `<span style="color:#7f8c8d;">不顯著</span>`);
+  // --- 2. 核心計算邏輯 (先確定 finalP, testMethodName, diagInfo) ---
+  let finalP = 0;
+  let testMethodName = "";
+  let diagInfo = "";
+  let resA = null; // 儲存最終使用的統計結果
 
-  const tableHeaderStyle = "background:#f2f2f2; border:1px solid #d1d3d1; padding:15px; text-align:left; font-weight:bold; font-size:24px;";
-  const tableCellStyle = "border:1px solid #d1d3d1; padding:15px; font-size:24px;";
+  if (analysis.type === "ANOVA") {
+    const groupsArr = groupNames.map(n => logicalGroups[n]);
+    const levA = leveneTest(groupsArr);
+    const useWelch = !levA.isHomogeneous;
+    resA = useWelch ? welchAnova(groupsArr) : analysis.data;
+    testMethodName = useWelch ? "Welch's ANOVA" : "One-way ANOVA";
+    finalP = resA.p;
+    diagInfo = `<span style="font-size: 16px; color: #666;"> (Levene Test P: ${levA.p.toFixed(4)}，判定：${levA.isHomogeneous ? '齊一' : '不齊一'})</span>`;
+  } else {
+    resA = analysis.data;
+    finalP = resA.p;
+    testMethodName = (analysis.type === "PAIRED_T") ? "成對樣本 T 檢定" : "獨立樣本 T 檢定";
+  }
 
-  let html = `<div style='font-family: "Calibri", "Microsoft JhengHei", sans-serif; color: #333;'>`;
-  html += `<h2 style="color: #1f4e78; border-bottom: 4px solid #1f4e78; padding-bottom: 12px; font-size: 32px; margin-bottom: 20px;">📊 統計分析報告</h2>`;
+  const pValStr = finalP < 0.0001 ? "< 0.0001" : finalP.toFixed(5);
+  const isSignificant = finalP < 0.05;
 
+  // --- 3. 建立專業卡片樣式 HTML (對齊圖片) ---
+  let html = `
+    <div style="margin: 40px auto; max-width: 95%; background: #ffffff; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 30px; border: 1px solid #e0e0e0; font-family: 'Calibri', 'Microsoft JhengHei', sans-serif; text-align:left;">
+        
+        <div style="display: flex; align-items: center; border-bottom: 4px solid #1f4e78; padding-bottom: 15px; margin-bottom: 20px;">
+            <span style="font-size: 32px; margin-right: 12px;">📊</span>
+            <h2 style="margin:0; color: #1f4e78; font-size: 32px;">
+                統計分析報告 <span style="font-size: 24px; font-weight: normal; color: #555;">(Statistical Analysis Report)</span>
+            </h2>
+        </div>
+
+        <p style="font-size: 22px; color: #333; margin-bottom: 15px;">檢定類型：<b>${testMethodName}</b> ${diagInfo}</p>
+  `;
+
+  // --- 4. 生成數據表格 ---
   switch (analysis.type) {
-    case "ONE_SAMPLE_T":
-      testMethodName = "單一樣本 T 檢定";
-      finalP = analysis.data.p;
-      html += `<p style="font-size: 24px;">檢定類型：<b>${testMethodName}</b></p>
-        <table style="width:100%; border-collapse: collapse;">
-          <thead><tr style="${tableHeaderStyle}"><td>檢定項</td><td>N</td><td>平均值</td><td>T</td><td>df</td><td>P-Value</td><td>單尾臨界</td><td>雙尾臨界</td><td>判定</td></tr></thead>
-          <tbody><tr>
-            <td style="${tableCellStyle}">${groupNames[0]}</td><td style="${tableCellStyle}">${analysis.data.n}</td>
-            <td style="${tableCellStyle}">${formatVal(analysis.data.mean)}</td><td style="${tableCellStyle}">${formatVal(analysis.data.t)}</td>
-            <td style="${tableCellStyle}">${analysis.data.df}</td><td style="${tableCellStyle}">${formatP(analysis.data.p)}</td>
-            <td style="${tableCellStyle}">${getTCritHelper(analysis.data.df, 0.05, 1)}</td>
-            <td style="${tableCellStyle}">${getTCritHelper(analysis.data.df, 0.05, 2)}</td>
-            <td style="${tableCellStyle}">${getFlag(analysis.data.p)}</td>
-          </tr></tbody></table>`;
+    case "ANOVA":
+      html += `
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 22px;">
+            <thead>
+                <tr style="background: #f8f9fa; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6;">
+                    <th style="padding: 12px; text-align: left;">變異來源</th>
+                    <th style="padding: 12px; text-align: center;">SS</th>
+                    <th style="padding: 12px; text-align: center;">df</th>
+                    <th style="padding: 12px; text-align: center;">MS</th>
+                    <th style="padding: 12px; text-align: center;">F</th>
+                    <th style="padding: 12px; text-align: center;">P-value</th>
+                    <th style="padding: 12px; text-align: center;">F crit</th>
+                    <th style="padding: 12px; text-align: center;">判定</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 12px;">組間 (Between)</td>
+                    <td style="padding: 12px; text-align: center;">${formatVal(analysis.data.ssb)}</td>
+                    <td style="padding: 12px; text-align: center;">${resA.df1}</td>
+                    <td style="padding: 12px; text-align: center;">${formatVal(analysis.data.ssb / resA.df1)}</td>
+                    <td style="padding: 12px; text-align: center;">${formatVal(resA.F)}</td>
+                    <td style="padding: 12px; text-align: center; color: ${isSignificant ? '#c0392b' : '#2ecc71'}; font-weight: bold;">${pValStr}</td>
+                    <td style="padding: 12px; text-align: center;">${getFCritHelper(resA.df1, resA.df2)}</td>
+                    <td style="padding: 12px; text-align: center; color: ${isSignificant ? '#c0392b' : '#2ecc71'}; font-weight: bold;">${getFlag(finalP)}</td>
+                </tr>
+                <tr style="background: #fafafa;">
+                    <td style="padding: 12px;">組內 (Within)</td>
+                    <td style="padding: 12px; text-align: center;">${formatVal(analysis.data.ssw)}</td>
+                    <td style="padding: 12px; text-align: center;">${resA.df2.toFixed(1)}</td>
+                    <td style="padding: 12px; text-align: center;">${formatVal(analysis.data.ssw / resA.df2)}</td>
+                    <td colspan="4" style="padding: 12px; text-align: center; color: #7f8c8d;">誤差項</td>
+                </tr>
+            </tbody>
+        </table>`;
       break;
 
     case "PAIRED_T":
     case "INDEPENDENT_T":
-      const d1 = logicalGroups[groupNames[0]], d2 = logicalGroups[groupNames[1]];
-      let diagInfo = "";
-      if (analysis.type === "PAIRED_T") {
-        testMethodName = "成對樣本 T 檢定";
-        finalP = analysis.data.p;
-      } else {
-        const lev = leveneTest([d1, d2]);
-        const tRes = independentTTest(d1, d2, lev.isHomogeneous);
-        testMethodName = lev.isHomogeneous ? "獨立樣本 T 檢定 (等變異)" : "Welch's T 檢定 (不等變異)";
-        analysis.data = tRes;
-        finalP = tRes.p;
-        diagInfo = `<span style="font-size: 20px; color: #666;"> (Levene's Brown-Forsythe Test P: ${lev.p.toFixed(4)}，判定：${lev.isHomogeneous ? '齊一' : '不齊一'})</span>`;
-      }
-      const pTwoTailed = analysis.data.p;
-      const pOneTailed = pTwoTailed / 2;
-
-      html += `<p style="font-size: 24px;">檢定類型：<b>${testMethodName}</b>${diagInfo}</p>
-    <table style="width:100%; border-collapse: collapse;">
-      <thead>
-        <tr style="${tableHeaderStyle}">
-          <td>比較組別</td><td>T 統計量</td><td>df</td><td>單尾 P</td><td>雙尾 P</td><td>單尾臨界</td><td>雙尾臨界</td><td>判定</td>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td style="${tableCellStyle}">${groupNames[0]} vs ${groupNames[1]}</td>
-          <td style="${tableCellStyle}">${formatVal(analysis.data.t)}</td>
-          <td style="${tableCellStyle}">${analysis.data.df.toFixed(2)}</td>
-          <td style="${tableCellStyle}">${formatP(pOneTailed)}</td>
-          <td style="${tableCellStyle}">${formatP(pTwoTailed)}</td>
-          <td style="${tableCellStyle}">${getTCritHelper(analysis.data.df, 0.05, 1)}</td>
-          <td style="${tableCellStyle}">${getTCritHelper(analysis.data.df, 0.05, 2)}</td>
-          <td style="${tableCellStyle}">${getFlag(pTwoTailed)}</td>
-        </tr>
-      </tbody>
-    </table>`;
-      break;
-
-    case "ANOVA":
-      const groupsArr = groupNames.map(n => logicalGroups[n]);
-      const levA = leveneTest(groupsArr);
-      const useWelch = !levA.isHomogeneous;
-      const resA = useWelch ? welchAnova(groupsArr) : analysis.data;
-      testMethodName = useWelch ? "Welch's ANOVA" : "One-way ANOVA";
-      finalP = resA.p;
-
-      html += `<p style="font-size: 24px;">檢定類型：<b>${testMethodName}</b> 
-               <span style="font-size: 20px; color: #666;">
-               (Levene's Brown-Forsythe Test P: ${levA.p.toFixed(4)}，判定：${levA.isHomogeneous ? '齊一' : '不齊一'})</span></p>
-        <table style="width:100%; border-collapse: collapse;">
-          <thead><tr style="${tableHeaderStyle}"><td>變異來源</td><td>SS</td><td>df</td><td>MS</td><td>F</td><td>P-value</td><td>F crit</td><td>判定</td></tr></thead>
-          <tbody>
-            <tr>
-              <td style="${tableCellStyle}">組間</td><td style="${tableCellStyle}">${formatVal(analysis.data.ssb)}</td>
-              <td style="${tableCellStyle}">${analysis.data.df1}</td><td style="${tableCellStyle}">${formatVal(analysis.data.ssb / analysis.data.df1)}</td>
-              <td style="${tableCellStyle}">${formatVal(resA.F)}</td><td style="${tableCellStyle}">${formatP(resA.p)}</td>
-              <td style="${tableCellStyle}">${getFCritHelper(resA.df1, resA.df2)}</td><td style="${tableCellStyle}">${getFlag(resA.p)}</td>
-            </tr>
-            <tr style="background:#fafafa;"><td style="${tableCellStyle}">組內</td><td style="${tableCellStyle}">${formatVal(analysis.data.ssw)}</td>
-              <td style="${tableCellStyle}">${analysis.data.df2}</td><td style="${tableCellStyle}">${formatVal(analysis.data.ssw / analysis.data.df2)}</td>
-              <td colspan="4" style="${tableCellStyle}">---</td>
-            </tr></tbody></table>`;
+      html += `
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 22px;">
+            <thead>
+                <tr style="background: #f8f9fa; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6;">
+                    <th style="padding: 12px; text-align: left;">比較項</th>
+                    <th style="padding: 12px; text-align: center;">T 統計量</th>
+                    <th style="padding: 12px; text-align: center;">df</th>
+                    <th style="padding: 12px; text-align: center;">P-Value</th>
+                    <th style="padding: 12px; text-align: center;">判定</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 12px;">${groupNames.join(" vs ")}</td>
+                    <td style="padding: 12px; text-align: center;">${formatVal(resA.t)}</td>
+                    <td style="padding: 12px; text-align: center;">${resA.df.toFixed(2)}</td>
+                    <td style="padding: 12px; text-align: center; color: ${isSignificant ? '#c0392b' : '#2ecc71'}; font-weight: bold;">${pValStr}</td>
+                    <td style="padding: 12px; text-align: center; color: ${isSignificant ? '#c0392b' : '#2ecc71'}; font-weight: bold;">${getFlag(finalP)}</td>
+                </tr>
+            </tbody>
+        </table>`;
       break;
   }
 
+  // --- 5. 生成分析結論區塊 ---
+  html += `
+        <div style="background: #f1f6f9; border-left: 6px solid #2980b9; padding: 20px; border-radius: 0 4px 4px 0; margin-top: 20px;">
+            <h3 style="margin: 0 0 10px 0; color: #1f4e78; font-size: 26px; display: flex; align-items: center;">
+                <span style="margin-right: 10px;">📝</span> 分析結論：
+            </h3>
+            <p style="margin: 0; font-size: 24px; line-height: 1.6; color: #333;">
+                檢定 P-Value 為 <b style="font-size: 26px;">${pValStr}</b>。在 α=0.05 顯著水準下，
+                ${isSignificant
+      ? `<span style="color:#c0392b; font-weight:bold;">拒絕虛無假設</span>。結果顯示不同組別之間存在顯著差異，建議檢查製程。`
+      : `<span style="color:#2ecc71; font-weight:bold;">無法拒絕虛無假設</span>。目前數據不足以證明組別之間存在顯著差異。`}
+            </p>
+        </div>
+    </div>`; // 結束卡片容器
+
+  // --- 6. 處理 Tukey HSD 事後檢定 (若有) ---
   if (analysis.postHoc && analysis.postHoc.length > 0) {
-    html += `<h3 style="color: #1f4e78; margin-top:25px; font-size: 28px;">🔍 事後檢定 (Tukey HSD)</h3>
-      <table style="width:100%; border-collapse: collapse;">
-        <thead><tr style="${tableHeaderStyle}"><td>比較對象</td><td>差異值</td><td>Q 統計量</td><td>判定</td></tr></thead>
-        <tbody>`;
+    html += `
+      <div style="margin: 20px auto; max-width: 95%; background: #fff; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 30px; border: 1px solid #e0e0e0; font-family: 'Microsoft JhengHei';">
+        <h3 style="color: #1f4e78; border-bottom: 3px solid #2980b9; padding-bottom: 10px; font-size: 28px;">🔍 事後檢定 (Tukey HSD)</h3>
+        <table style="width:100%; border-collapse: collapse; margin-top:15px; font-size:22px;">
+            <thead><tr style="background:#f8f9fa; border-bottom:2px solid #dee2e6;"><td>比較對象</td><td style="text-align:center;">差異值</td><td style="text-align:center;">Q 統計量</td><td style="text-align:center;">判定</td></tr></thead>
+            <tbody>`;
     analysis.postHoc.forEach(ph => {
-      html += `<tr><td style="${tableCellStyle}">${ph.pair}</td><td style="${tableCellStyle}">${ph.diff}</td>
-        <td style="${tableCellStyle}">${ph.qValue} (臨界:${ph.qCrit})</td><td style="${tableCellStyle}">${ph.isSignificant ? '🚩 顯著' : '不顯著'}</td></tr>`;
+      html += `<tr style="border-bottom: 1px solid #eee;"><td style="padding:10px;">${ph.pair}</td><td style="text-align:center;">${ph.diff}</td><td style="text-align:center;">${ph.qValue} (臨界:${ph.qCrit})</td><td style="text-align:center;">${ph.isSignificant ? '<b style="color:#c0392b;">🚩 顯著</b>' : '不顯著'}</td></tr>`;
     });
-    html += `</tbody></table>`;
+    html += `</tbody></table></div>`;
   }
 
-  html += `<div style="margin-top:35px; padding:25px; background:#f4f7f9; border:1px solid #d1d3d1;">
-            <b style="font-size:28px; color:#1f4e78;">📝 分析結論：</b><br>
-            <p style="margin-top:15px; line-height:1.8; font-size:24px;">
-              檢定 P-Value 為 <b>${finalP.toFixed(5)}</b>。在 α=0.05 顯著水準下，
-              ${finalP < 0.05 ? `<span style="color:#c0392b;"><b>拒絕虛無假設</b>。結果顯示不同組別之間存在顯著差異。</span>` : `<span><b>無法拒絕虛無假設</b>。目前數據不足以證明組別之間存在顯著差異。</span>`}
-            </p></div></div>`;
+  // --- 7. 最後渲染 ---
   resultDiv.style.display = "block";
   resultDiv.innerHTML = html;
 }
-
 function autoGroupColoring() {
   const groupMap = {};
   let baseColors = ["#1F77B4", "#FF7F0E", "#2CA02C", "#D62728", "#9467BD", "#8C564B", "#E377C2", "#7F7F7F", "#BCBD22", "#17BECF", "#003F5C", "#DE425B", "#488F31", "#6050DC", "#B33016", "#00A3AD", "#8A2BE2", "#FFA600", "#58508D", "#BC5090", "#00D2D3", "#54A0FF", "#5F27CD", "#EE5253", "#01A3A4", "#FF9F43", "#10AC84", "#222F3E", "#F368E0", "#FF6B6B"];
