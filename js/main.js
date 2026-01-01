@@ -81,15 +81,25 @@ function go() {
   const exX = parseInt(document.getElementById("extremeXOffsetInput").value) || 32;
   const mmX = parseInt(document.getElementById("meanMedianXOffsetInput").value) || 25;
 
-  // --- 4. 繪製圖表 ---
+
+  const logicalGroups = rawActiveGroups.reduce((acc, col) => {
+    const prefix = col.name.split("/")[0].trim();
+    if (!acc[prefix]) acc[prefix] = [];
+    acc[prefix].push(...col.values.filter((v) => v !== null && !isNaN(v)));
+    return acc;
+  }, {});
+
+  const analysisResult = calculateAdvancedStats(logicalGroups, specTarget, document.getElementById("showPairedP")?.checked);
+
+  // --- 5. 繪製圖表 ---
   const groupNames = activeGroupsForPlot.map((c) => c.name);
   const colors = activeGroupsForPlot.map((c) => c.color);
   const boxDataArray = activeGroupsForPlot.map((c) => c.values.filter((v) => v !== null && !isNaN(v)));
 
   if (showBox) {
     createPlotlyBoxChart(
-      rawActiveGroups.map(c => c.values.filter(v => v !== null && !isNaN(v))), // 👈 全量數據：統計精確用
-      boxDataArray, // 👈 抽樣數據：繪圖流暢用
+      analysisResult,
+      boxDataArray,
       groupNames,
       colors,
       mainTitle,
@@ -101,8 +111,7 @@ function go() {
       yMin,
       yMax,
       yStep,
-      exX,
-      mmX,
+      exX, mmX,
       document.getElementById("showOutliers").checked,
       document.getElementById("showAllPoints").checked,
       statFontSize,

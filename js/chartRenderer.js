@@ -145,8 +145,8 @@ function deleteOutlierPoint(groupIndexOrName, value) {
 
 
 function createPlotlyBoxChart(
-  statsDataArray, // ✨ 全量原始數據 (計算 P-Value 用，保證精準)
-  boxDataArray,   // ✨ 抽樣數據 (繪圖用，保證流暢)
+  analysisResult, // ✨ 接收由 main.js 傳入的統一結果
+  boxDataArray,   // ✨ 抽樣數據 (繪圖用)
   groupNames,
   colors,
   title,
@@ -173,91 +173,95 @@ function createPlotlyBoxChart(
   const div = document.createElement("div");
   div.className = "chart-container";
   const plotId = "plotly-box-" + Date.now();
+
   const showMean = document.getElementById("showMean")?.checked ?? false;
   const showMedian = document.getElementById("showMedian")?.checked ?? false;
   const showExtremes = document.getElementById("showExtremes")?.checked ?? false;
   const useBold = document.getElementById("useBoldFont")?.checked ?? false;
   const showPValueCheckbox = document.getElementById("showPValue")?.checked ?? false;
 
-  // --- 1. Minitab 統計決策邏輯 (使用 statsDataArray 全量數據) ---
+  // --- 1. 使用外部傳入的 analysisResult 生成摘要框 (與下方報告同步) ---
   let statsHeaderBoxHtml = "";
-  let finalAnalysis = null;
 
-  if (showPValueCheckbox && statsDataArray && statsDataArray.length >= 2) {
-    const isPaired = document.getElementById("showPairedP")?.checked;
-    // 診斷變異數齊一性 (Levene's Test)
-    const lev = leveneTest(statsDataArray);
+  if (showPValueCheckbox && analysisResult && analysisResult.data) {
+    const d = analysisResult.data;
+    const isSig = d.p < 0.05;
+    const pValStr = d.p < 0.0001 ? "0.00000" : d.p.toFixed(5);
 
-    if (groupNames.length === 2 && !isPaired) {
-      finalAnalysis = {
-        type: lev.isHomogeneous ? "Student's T" : "Welch's T",
-        data: independentTTest(statsDataArray[0], statsDataArray[1], lev.isHomogeneous)
-      };
-    } else if (groupNames.length >= 3) {
-      // 依據 Levene 結果自動選擇模型
-      finalAnalysis = lev.isHomogeneous
-        ? { type: "One-Way ANOVA", data: oneWayAnova(statsDataArray) }
-        : { type: "Welch ANOVA", data: welchAnova(statsDataArray) };
+    let methodDisplay = analysisResult.type;
+    if (methodDisplay === "ANOVA") {
+      methodDisplay = (d.method === "Welch") ? "Welch's ANOVA" : "One-way ANOVA";
+    } else if (methodDisplay === "INDEPENDENT_T") {
+      methodDisplay = "Independent T";
+    } else {
+      methodDisplay = methodDisplay.replace("_", " ");
     }
 
-    if (finalAnalysis && finalAnalysis.data) {
-      const d = finalAnalysis.data;
-      const isANOVA = finalAnalysis.type.includes("ANOVA");
-      const headerFS = Math.round(statFontSize * 1.1 - 5);
-      const contentFS = statFontSize - 5;
-      const pValStr = d.p < 0.001 ? "< 0.001" : d.p.toFixed(4);
-      const dfDisplay = d.df2 ? `${d.df1.toFixed(0)}, ${d.df2.toFixed(2)}` : (d.df ? d.df.toFixed(1) : '---');
-
-      statsHeaderBoxHtml = `
-        <div style="border: 2px solid #2980b9; border-radius: 8px; padding: 5px 8px; 
-                    background: #ffffff; font-family: 'Calibri', sans-serif; 
-                    width: fit-content; min-width: 150px; white-space: nowrap;
-                    margin-top: -40px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05); pointer-events: none;">
-            <div style="font-weight:bold; color:#1f4e78; border-bottom:1.5px solid #2980b9; margin-bottom:4px; font-size:${headerFS}px;">
-                ${finalAnalysis.type}
-            </div>
-            <table style="width: 100%; font-size: ${contentFS}px; border-collapse: collapse;">
-                <tr><td style="color:#666; padding-right:15px;">P-Value</td>
-                    <td style="text-align:right; font-weight:bold; color:${d.p < 0.05 ? '#c0392b' : '#2ecc71'}">${pValStr}</td></tr>
-                <tr><td style="color:#666;">${isANOVA ? 'F' : 'T'} Stat</td>
-                    <td style="text-align:right;">${(d.F || d.t || 0).toFixed(3)}</td></tr>
-                <tr><td style="color:#666;">df</td>
-                    <td style="text-align:right;">${dfDisplay}</td></tr>
-            </table>
-        </div>`;
-    }
+    statsHeaderBoxHtml = `
+      <div style="border: 2px solid #2980b9; border-radius: 8px; padding: 10px 15px; 
+                  background: #ffffff; font-family: 'Calibri', sans-serif; 
+                  width: fit-content; white-space: nowrap;
+                  margin-top: -45px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); pointer-events: none;">
+          <div style="font-weight:bold; color:#1f4e78; border-bottom:2px solid #2980b9; margin-bottom:6px; font-size:${Math.round(statFontSize * 1.2)}px;">
+              ${methodDisplay}
+          </div>
+          <table style="width: 100%; font-size: ${statFontSize}px; border-collapse: collapse; line-height: 0.9;">
+              <tr><td style="color:#666; padding-right:20px;">P-Value</td>
+                  <td style="text-align:right; font-weight:bold; color:${isSig ? '#c0392b' : '#2ecc71'}">${pValStr}</td></tr>
+              <tr><td style="color:#666;">Stat</td>
+                  <td style="text-align:right;">${(d.F || d.t || 0).toFixed(3)}</td></tr>
+              <tr><td style="color:#666;">df</td>
+                  <td style="text-align:right;">${d.df2 ? `${d.df1.toFixed(0)}, ${d.df2.toFixed(1)}` : (d.df ? d.df.toFixed(1) : '---')}</td></tr>
+          </table>
+      </div>`;
   }
 
-  // --- 2. 圖例與排版 ---
-  const groupOrder = [];
-  const groupLabels = {};
-  groupNames.forEach((name, i) => {
-    const parts = String(name).split("/");
-    if (parts.length > 1) {
-      const gName = parts[0].trim();
-      if (!groupLabels[gName]) { groupOrder.push(gName); groupLabels[gName] = colors[i]; }
-    }
-  });
+  // --- 2. 判斷圖例邏輯 ---
+  let hasSlash = groupNames.some(name => String(name).includes("/"));
   let legendHtml = "";
-  groupOrder.forEach((group) => {
-    legendHtml += `<div style="display:flex;align-items:center;gap:6px;flex:0 0 auto;"><span style="display:inline-block;width:14px;height:14px;background:${groupLabels[group]};border-radius:3px;border:1px solid #666;"></span><span style="font-size:${fontSize * 0.75}px;font-weight:${useBold ? "bold" : "normal"};white-space:nowrap;font-family:'Microsoft JhengHei',Calibri;">${group}</span></div>`;
-  });
 
+  if (hasSlash) {
+    const groupOrder = [];
+    const groupLabels = {};
+    groupNames.forEach((name, i) => {
+      const gName = String(name).split("/")[0].trim();
+      if (!groupLabels[gName]) { groupOrder.push(gName); groupLabels[gName] = colors[i]; }
+    });
+
+    const legendItemsHtml = groupOrder.map((group) => `
+        <div style="display: flex; align-items: center; gap: 6px; flex: 0 0 auto;">
+          <span style="display: inline-block; width: 14px; height: 14px; background: ${groupLabels[group]}; 
+                       border-radius: 3px; border: 1px solid #666; flex-shrink: 0;"></span>
+          <span style="font-size: ${fontSize * 0.75}px; 
+                       font-weight: ${useBold ? "bold" : "normal"}; 
+                       white-space: nowrap; 
+                       font-family: 'Microsoft JhengHei', 'Calibri', sans-serif;">
+            ${group}
+          </span>
+        </div>`).join("");
+
+    legendHtml = `
+      <div style="display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px 15px; width: 100%;">
+        ${legendItemsHtml}
+      </div>`;
+  }
+
+  // --- 3. 生成排版 HTML ---
   div.innerHTML = `
-    <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin-top: 25px; margin-bottom: 15px; width: 100%;">
+    <div style="display: grid; grid-template-columns: 1.2fr auto 1.2fr; align-items: center; margin-top: 25px; margin-bottom: 15px; width: 100%;">
       <div style="padding-left: 20px; display: flex; justify-content: flex-start;">${statsHeaderBoxHtml}</div>
       <h2 style="margin: 0; font-size: ${titleFontSize}px; font-family: 'Microsoft JhengHei'; text-align: center; white-space: nowrap; font-weight: ${useBold ? 'bold' : 'normal'};">${title}</h2>
-      <div style="display: flex; flex-wrap: wrap; justify-content: flex-end; align-content: center; gap: 8px 12px; max-width: 500px; padding-right: 100px; padding-top: 10px;">${legendHtml}</div>
+      <div style="padding-right: 100px; display: flex; justify-content: flex-end; padding-top: 20px;"> 
+          <div style="max-width: 500px; width: fit-content;">
+              ${legendHtml}
+          </div>
+      </div>
     </div>
-    <div id="${plotId}" class="plotly-graph-div" style="height:${chartHeight}px;"></div>
-    <div style="text-align:center;margin:30px;" data-html2canvas-ignore="true">
-      <button class="s" onclick="downloadBoxChartWithHeader(this, '${title}')">下載圖片</button>
-    </div>`;
+    <div id="${plotId}" class="plotly-graph-div" style="height:${chartHeight}px;"></div>`;
 
   parentContainer.appendChild(div);
   plotlyCharts.push(plotId);
 
-  // --- 3. 繪圖與註釋邏輯 ---
   const traces = [];
   const annotations = [];
   const safeFormat = (val) => val === undefined || isNaN(val) ? "N/A" : Number(val).toFixed(2);
@@ -266,83 +270,71 @@ function createPlotlyBoxChart(
   groupNames.forEach((name, i) => {
     const yData = boxDataArray[i];
     if (!yData || yData.length === 0) return;
+
+    // ✨ 修正 Outlier 顯示邏輯
+    const boxPointsMode = showAllPoints ? "all" : (showOutliers ? "outliers" : false);
+
     traces.push({
       y: yData, x: yData.map(() => i), type: "box", name: toBold(String(name)),
-      boxpoints: showAllPoints ? "all" : (showOutliers ? "outliers" : false),
+      boxpoints: boxPointsMode,
       jitter: showAllPoints ? 0.3 : 0, pointpos: showAllPoints ? -1.8 : 0,
       marker: { color: colors[i], size: pointSize + 3 },
       line: { width: lineWidth }, fillcolor: colors[i] + "33",
     });
 
-    if (showMean || showMedian || showExtremes) {
-      const s = [...yData].sort((a, b) => a - b);
-      const meanV = s.reduce((a, b) => a + b, 0) / s.length;
-      const medV = s.length % 2 === 0 ? (s[s.length / 2 - 1] + s[s.length / 2]) / 2 : s[Math.floor(s.length / 2)];
-      const createLabel = (val, prefix, xShift, color) => ({
-        x: i, y: val, text: toBold(prefix + safeFormat(val)), showarrow: false, xanchor: "left", yanchor: "middle",
-        xshift: meanMedianXOffset + xShift, font: { family: "Calibri", size: statFontSize, color: color, weight: useBold ? 'bold' : 'normal' }
-      });
-      if (showMean) annotations.push(createLabel(meanV, "  ", 15, "#000000"));
-      if (showMedian) annotations.push(createLabel(medV, "  ", (showMean ? statFontSize * 3.5 : 0) + 15, "#000000"));
-      if (showExtremes) {
-        annotations.push({ x: i, y: s[s.length - 1], text: toBold("↑ " + safeFormat(s[s.length - 1])), showarrow: false, xanchor: "left", xshift: extremeXOffset, font: { color: "#e74c3c", size: statFontSize, weight: useBold ? 'bold' : 'normal' } });
-        annotations.push({ x: i, y: s[0], text: toBold("↓ " + safeFormat(s[0])), showarrow: false, xanchor: "left", xshift: extremeXOffset, font: { color: "#27ae60", size: statFontSize, weight: useBold ? 'bold' : 'normal' } });
-      }
+    // ✨ 極值、平均值、中位數標註
+    const sortedY = [...yData].sort((a, b) => a - b);
+    const meanV = jStat.mean(yData);
+    const medV = jStat.median(yData);
+    const maxV = sortedY[sortedY.length - 1];
+    const minV = sortedY[0];
+
+    const createLabel = (val, prefix, xShift, color, isExtreme = false) => ({
+      x: i, y: val, text: toBold(prefix + safeFormat(val)),
+      showarrow: false, xanchor: "left", yanchor: "middle",
+      xshift: isExtreme ? extremeXOffset : (meanMedianXOffset + xShift),
+      font: { family: "Calibri", size: statFontSize, color: color, weight: useBold ? 'bold' : 'normal' }
+    });
+
+    if (showMean) annotations.push(createLabel(meanV, "  ", 15, "#000000"));
+    if (showMedian) annotations.push(createLabel(medV, "  ", (showMean ? statFontSize * 3.5 : 0) + 15, "#000000"));
+
+    // ✨ 修正極值標註
+    if (showExtremes) {
+      annotations.push(createLabel(maxV, "↑ ", 0, "#e74c3c", true));
+      annotations.push(createLabel(minV, "↓ ", 0, "#27ae60", true));
     }
   });
 
-  // --- 4. 座標範圍與規格線 ---
-  let allVals = []; boxDataArray.forEach((v) => allVals.push(...v));
-  let min = yMin !== null ? yMin : Math.min(...allVals), max = yMax !== null ? yMax : Math.max(...allVals);
-  const specLSL = parseFloat(document.getElementById("specLSL").value);
-  const specUSL = parseFloat(document.getElementById("specUSL").value);
-  const specColor = document.getElementById("specLineColor").value;
-  const specStyle = document.getElementById("specLineStyle").value === "dashed" ? "dash" : "solid";
-  const shapes = [];
-
-  if (!isNaN(specLSL)) { min = Math.min(min, specLSL); shapes.push({ type: "line", xref: "paper", x0: 0, x1: 1, yref: "y", y0: specLSL, y1: specLSL, line: { color: specColor, width: 3, dash: specStyle } }); annotations.push({ y: specLSL, x: 1, xref: "paper", yref: "y", text: toBold("LSL"), showarrow: false, xanchor: "left", xshift: 5, font: { size: fontSize + 2, color: specColor, weight: "bold" } }); }
-  if (!isNaN(specUSL)) { max = Math.max(max, specUSL); shapes.push({ type: "line", xref: "paper", x0: 0, x1: 1, yref: "y", y0: specUSL, y1: specUSL, line: { color: specColor, width: 3, dash: specStyle } }); annotations.push({ y: specUSL, x: 1, xref: "paper", yref: "y", text: toBold("USL"), showarrow: false, xanchor: "left", xshift: 5, font: { size: fontSize + 2, color: specColor, weight: "bold" } }); }
-
-  const pad = (max - min) * 0.1 || 1;
-  const tickText = groupNames.map(n => toBold(String(n).split("/").pop().replace(/[\{\｛].+?[\}\｝]/g, "").trim()));
-
   Plotly.newPlot(plotId, traces, {
-    height: chartHeight,
-    boxgap: boxGap,
-    font: { family: '"Microsoft JhengHei", Calibri' },
-    margin: { l: 150, r: 100, t: 30, b: 80 },
-    paper_bgcolor: "#F7F7F7",
-    plot_bgcolor: "white",
+    height: chartHeight, boxgap: boxGap, font: { family: '"Microsoft JhengHei", Calibri' },
+    margin: { l: 150, r: 100, t: 30, b: 80 }, paper_bgcolor: "#F7F7F7", plot_bgcolor: "white",
     yaxis: {
-      title: { text: toBold(yUnit), font: { size: fontSize + 12 }, standoff: 10 }, // ✨ standoff 改為正數
-      range: [min - pad, max + pad],
-      showline: true, mirror: true, ticks: "outside",
-      tickwidth: lineWidth, linewidth: lineWidth,
+      title: { text: toBold(yUnit), font: { size: fontSize + 12 }, standoff: -10 },
+      range: (yMin !== null && yMax !== null) ? [yMin, yMax] : undefined,
+      showline: true, mirror: true, ticks: "outside", tickwidth: lineWidth, linewidth: lineWidth,
       gridcolor: document.getElementById("showGrid")?.checked ? "#aaa" : "rgba(0,0,0,0)",
       dtick: yStep || undefined,
-      tickfont: { size: fontSize + 6 },
+      tickprefix: useBold ? "<b>" : "",
+      ticksuffix: useBold ? "</b>" : "",
+      tickfont: {
+        size: fontSize + 6,
+        family: 'Calibri, "Microsoft JhengHei", sans-serif',
+        weight: useBold ? "bold" : "normal",
+      },
       zeroline: false
     },
     xaxis: {
-      showline: true, mirror: true, linewidth: lineWidth,
-      tickmode: "array", tickvals: groupNames.map((_, i) => i),
-      ticktext: tickText,
-      tickfont: { size: fontSize },
-      automargin: true,
+      showline: true, mirror: true, linewidth: lineWidth, tickmode: "array",
+      tickvals: groupNames.map((_, i) => i),
+      ticktext: groupNames.map(n => toBold(String(n).split("/").pop().replace(/[\{\｛].+?[\}\｝]/g, "").trim())),
+      tickfont: { size: fontSize, weight: useBold ? "bold" : "normal" }, automargin: true,
     },
-    annotations: annotations,
-    shapes: shapes,
-    showlegend: false,
+    annotations: annotations, showlegend: false,
   }, { responsive: true, displayModeBar: false }).then((p) => {
-    // ✨ 新增點擊監聽器：點擊資料點時紀錄組別與數值
     p.on("plotly_click", (data) => {
       if (data.points.length > 0) {
-        const point = data.points[0];
-        // 紀錄最後點擊的資訊，供 Delete 鍵使用
-        lastClickedPoint = {
-          groupName: groupNames[point.x],
-          value: point.y
-        };
+        lastClickedPoint = { groupName: groupNames[data.points[0].x], value: data.points[0].y };
       }
     });
   });

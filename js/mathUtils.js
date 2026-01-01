@@ -332,7 +332,8 @@ function calculateAdvancedStats(logicalGroups, targetValue, isPairedMode) {
     result.data = isPairedMode ? pairedTTest(d1, d2) : independentTTest(d1, d2);
   } else if (groupNames.length >= 3) {
     const groupsArray = groupNames.map((n) => logicalGroups[n]);
-    const anova = oneWayAnova(groupsArray);
+    const levA = leveneTest(groupsArray);
+    const anova = levA.isHomogeneous ? oneWayAnova(groupsArray) : welchAnova(groupsArray);
     result.type = "ANOVA";
     result.data = anova;
     if (anova.p < 0.05) {
@@ -360,7 +361,7 @@ function getAdvancedStatsResult(logicalGroups, targetValue, isPairedMode) {
   if (groupNames.length === 1) {
     // A. 單一樣本 T 檢定
     if (!isNaN(targetValue)) {
-      result.type = "ONE_SAMPLE_T";
+      result.type = "One_Sample_T";
       result.data = oneSampleTTest(logicalGroups[groupNames[0]], targetValue);
     }
   } else if (groupNames.length === 2) {
@@ -369,10 +370,10 @@ function getAdvancedStatsResult(logicalGroups, targetValue, isPairedMode) {
     const data2 = logicalGroups[groupNames[1]];
 
     if (isPairedMode) {
-      result.type = "PAIRED_T";
+      result.type = "Paired_T";
       result.data = pairedTTest(data1, data2);
     } else {
-      result.type = "INDEPENDENT_T";
+      result.type = "Independent_T";
       result.data = independentTTest(data1, data2);
     }
   } else if (groupNames.length >= 3) {
@@ -380,7 +381,7 @@ function getAdvancedStatsResult(logicalGroups, targetValue, isPairedMode) {
     const groupsArray = groupNames.map((name) => logicalGroups[name]);
     const res = oneWayAnova(groupsArray);
     result.type = "ANOVA";
-    result.data = res;
+    result.data = anova;
 
     // 如果顯著，執行事後檢定
     if (res.p < 0.05) {
