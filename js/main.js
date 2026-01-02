@@ -341,13 +341,15 @@ function performAdvancedStats(activeGroups, targetValue) {
   if (!resultDiv) return;
 
   const logicalGroups = activeGroups.reduce((acc, col) => {
-    const prefix = col.name.split("/")[0].trim();
+    const prefix = col.name.split("\\")[0].trim(); // 取得 \ 以前的名字
     if (!acc[prefix]) acc[prefix] = [];
     acc[prefix].push(...col.values.filter((v) => v !== null && !isNaN(v)));
     return acc;
   }, {});
 
-  const groupNames = Object.keys(logicalGroups);
+  const groupNames = Object.keys(logicalGroups); // 這裡的 groupNames 已經是 [大名A, 大名B, ...]
+
+  // 使用合併後的邏輯群組進行計算
   const analysis = calculateAdvancedStats(
     logicalGroups,
     targetValue,
@@ -380,26 +382,46 @@ function performAdvancedStats(activeGroups, targetValue) {
   };
 
   // --- 2. 核心計算邏輯 (先確定 finalP, testMethodName, diagInfo) ---
+  // --- 2. 核心計算邏輯 ---
   let finalP = 0;
   let testMethodName = "";
   let diagInfo = "";
-  let resA = null; // 儲存最終使用的統計結果
+  let resA = null;
 
+  // --- 修改後的 ANOVA 處理邏輯 ---
+  // 在 main.js 的 performAdvancedStats 函數內找到 ANOVA 部分：
   if (analysis.type === "ANOVA") {
     const groupsArr = groupNames.map((n) => logicalGroups[n]);
-    const levA = leveneTest(groupsArr);
+    const levA = leveneTest(groupsArr); // 變異數齊性檢定
     const useWelch = !levA.isHomogeneous;
+
+    // 1. 執行對應的 ANOVA
     resA = useWelch ? welchAnova(groupsArr) : analysis.data;
     testMethodName = useWelch ? "Welch's ANOVA" : "One-way ANOVA";
     finalP = resA.p;
-    diagInfo = `<span style="font-size: 16px; color: #666;"> (Levene Test P: ${levA.p.toFixed(
+
+    diagInfo = `<span style="font-size: 16px; color: #666;"> (Levene P: ${levA.p.toFixed(
       4
     )}，判定：${levA.isHomogeneous ? "齊一" : "不齊一"})</span>`;
-  } else {
-    resA = analysis.data;
-    finalP = resA.p;
-    testMethodName =
-      analysis.type === "PAIRED_T" ? "成對樣本 T 檢定" : "獨立樣本 T 檢定";
+
+    // 2. 根據變異數狀態選擇事後檢定路徑
+    if (finalP < 0.05) {
+      if (useWelch) {
+        // 變異數不齊一 -> 使用 Games-Howell
+        analysis.postHoc = runPostHocGamesHowell(groupsArr, groupNames);
+        analysis.postHocTitle = "🔍 事後檢定 (Games-Howell)";
+      } else {
+        // 變異數齊一 -> 使用 Tukey HSD
+        const currentMSW = analysis.data.ssw / analysis.data.df2;
+        analysis.postHoc = runPostHocTukey(
+          groupsArr,
+          groupNames,
+          currentMSW,
+          analysis.data.df2
+        );
+        analysis.postHocTitle = "🔍 事後檢定 (Tukey HSD)";
+      }
+    }
   }
 
   const pValStr = finalP < 0.0001 ? "< 0.0001" : finalP.toFixed(5);
@@ -415,8 +437,7 @@ function performAdvancedStats(activeGroups, targetValue) {
                 統計分析報告 <span style="font-size: 24px; font-weight: normal; color: #555;">(Statistical Analysis Report)</span>
             </h2>
         </div>
-
-        <p style="font-size: 22px; color: #333; margin-bottom: 15px;">檢定類型：<b>${testMethodName}</b> ${diagInfo}</p>
+        ...
   `;
 
   // --- 4. 生成數據表格 ---
@@ -534,7 +555,7 @@ function performAdvancedStats(activeGroups, targetValue) {
   if (analysis.postHoc && analysis.postHoc.length > 0) {
     html += `
       <div style="margin: 20px auto; max-width: 95%; background: #fff; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 30px; border: 1px solid #e0e0e0; font-family: 'Microsoft JhengHei';">
-        <h3 style="color: #1f4e78; border-bottom: 3px solid #2980b9; padding-bottom: 10px; font-size: 28px;">🔍 事後檢定 (Tukey HSD)</h3>
+        <h3 style="color: #1f4e78; border-bottom: 3px solid #2980b9; padding-bottom: 10px; font-size: 28px;">${analysis.postHocTitle}</h3>
         <table style="width:100%; border-collapse: collapse; margin-top:15px; font-size:22px;">
             <thead><tr style="background:#f8f9fa; border-bottom:2px solid #dee2e6;"><td>比較對象</td><td style="text-align:center;">差異值</td><td style="text-align:center;">Q 統計量</td><td style="text-align:center;">判定</td></tr></thead>
             <tbody>`;

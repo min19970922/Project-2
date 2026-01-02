@@ -83,14 +83,35 @@ const CONSTANTS = {
 const STAT_TABLES = {
   // 擴充 Tukey HSD 臨界值表 (Alpha = 0.05)，支援 k=2~20
   TUKEY_Q_05: {
-    5: [3.64, 4.60, 5.22, 5.67, 6.03, 6.33, 6.58, 6.80, 6.99, 7.17, 7.32, 7.47, 7.60, 7.72, 7.83, 7.93, 8.03, 8.12, 8.21],
-    10: [3.15, 3.88, 4.33, 4.65, 4.91, 5.12, 5.30, 5.46, 5.60, 5.72, 5.83, 5.93, 6.03, 6.11, 6.19, 6.27, 6.34, 6.40, 6.47],
-    20: [2.95, 3.58, 3.96, 4.23, 4.45, 4.62, 4.77, 4.90, 5.01, 5.11, 5.20, 5.28, 5.36, 5.43, 5.49, 5.55, 5.61, 5.67, 5.72],
-    40: [2.86, 3.44, 3.79, 4.04, 4.23, 4.39, 4.52, 4.63, 4.74, 4.82, 4.91, 4.98, 5.05, 5.11, 5.17, 5.22, 5.27, 5.32, 5.36],
-    60: [2.83, 3.40, 3.74, 3.98, 4.16, 4.31, 4.44, 4.55, 4.65, 4.73, 4.81, 4.88, 4.94, 5.00, 5.06, 5.11, 5.15, 5.20, 5.24],
-    120: [2.80, 3.36, 3.68, 3.92, 4.10, 4.24, 4.36, 4.47, 4.56, 4.64, 4.71, 4.78, 4.84, 4.90, 4.95, 5.00, 5.04, 5.09, 5.13],
-    999: [2.77, 3.31, 3.63, 3.86, 4.03, 4.17, 4.29, 4.39, 4.47, 4.55, 4.62, 4.68, 4.74, 4.80, 4.85, 4.89, 4.94, 4.98, 5.02]
-  }
+    5: [
+      3.64, 4.6, 5.22, 5.67, 6.03, 6.33, 6.58, 6.8, 6.99, 7.17, 7.32, 7.47, 7.6,
+      7.72, 7.83, 7.93, 8.03, 8.12, 8.21,
+    ],
+    10: [
+      3.15, 3.88, 4.33, 4.65, 4.91, 5.12, 5.3, 5.46, 5.6, 5.72, 5.83, 5.93,
+      6.03, 6.11, 6.19, 6.27, 6.34, 6.4, 6.47,
+    ],
+    20: [
+      2.95, 3.58, 3.96, 4.23, 4.45, 4.62, 4.77, 4.9, 5.01, 5.11, 5.2, 5.28,
+      5.36, 5.43, 5.49, 5.55, 5.61, 5.67, 5.72,
+    ],
+    40: [
+      2.86, 3.44, 3.79, 4.04, 4.23, 4.39, 4.52, 4.63, 4.74, 4.82, 4.91, 4.98,
+      5.05, 5.11, 5.17, 5.22, 5.27, 5.32, 5.36,
+    ],
+    60: [
+      2.83, 3.4, 3.74, 3.98, 4.16, 4.31, 4.44, 4.55, 4.65, 4.73, 4.81, 4.88,
+      4.94, 5.0, 5.06, 5.11, 5.15, 5.2, 5.24,
+    ],
+    120: [
+      2.8, 3.36, 3.68, 3.92, 4.1, 4.24, 4.36, 4.47, 4.56, 4.64, 4.71, 4.78,
+      4.84, 4.9, 4.95, 5.0, 5.04, 5.09, 5.13,
+    ],
+    999: [
+      2.77, 3.31, 3.63, 3.86, 4.03, 4.17, 4.29, 4.39, 4.47, 4.55, 4.62, 4.68,
+      4.74, 4.8, 4.85, 4.89, 4.94, 4.98, 5.02,
+    ],
+  },
 };
 
 function getC4(n) {
@@ -107,7 +128,9 @@ function getTukeyQ(k, df) {
   const table = STAT_TABLES.TUKEY_Q_05;
   // 更新 k 的限制範圍至 20
   const kIdx = Math.min(Math.max(k, 2), 20) - 2;
-  const dfs = Object.keys(table).map(Number).sort((a, b) => a - b);
+  const dfs = Object.keys(table)
+    .map(Number)
+    .sort((a, b) => a - b);
   let targetDF = dfs.find((d) => d >= df) || 999;
   return table[targetDF][kIdx];
 }
@@ -132,10 +155,10 @@ function betainc(x, a, b) {
   if (x === 1) return 1;
   const bt = Math.exp(
     logGamma(a + b) -
-    logGamma(a) -
-    logGamma(b) +
-    a * Math.log(x) +
-    b * Math.log(1 - x)
+      logGamma(a) -
+      logGamma(b) +
+      a * Math.log(x) +
+      b * Math.log(1 - x)
   );
   const betacf = (x, a, b) => {
     const MAXIT = 100,
@@ -204,9 +227,12 @@ function oneSampleTTest(data, mu) {
 }
 
 function independentTTest(data1, data2, equalVar = false) {
-  const n1 = data1.length, n2 = data2.length;
-  const m1 = getMean(data1), m2 = getMean(data2);
-  const v1 = getVar(data1, m1), v2 = getVar(data2, m2);
+  const n1 = data1.length,
+    n2 = data2.length;
+  const m1 = getMean(data1),
+    m2 = getMean(data2);
+  const v1 = getVar(data1, m1),
+    v2 = getVar(data2, m2);
 
   let t, df;
   if (equalVar) {
@@ -217,11 +243,21 @@ function independentTTest(data1, data2, equalVar = false) {
   } else {
     // 2. Welch's T-test (Unequal Variances)
     t = (m1 - m2) / Math.sqrt(v1 / n1 + v2 / n2);
-    df = Math.pow(v1 / n1 + v2 / n2, 2) /
+    df =
+      Math.pow(v1 / n1 + v2 / n2, 2) /
       (Math.pow(v1 / n1, 2) / (n1 - 1) + Math.pow(v2 / n2, 2) / (n2 - 1));
   }
   const p = 2 * Math.min(tCDF(t, df), 1 - tCDF(t, df));
-  return { t, df, p, m1, m2, method: equalVar ? "Student's T-test (Equal Var)" : "Welch's T-test (Unequal Var)" };
+  return {
+    t,
+    df,
+    p,
+    m1,
+    m2,
+    method: equalVar
+      ? "Student's T-test (Equal Var)"
+      : "Welch's T-test (Unequal Var)",
+  };
 }
 
 function pairedTTest(data1, data2) {
@@ -263,13 +299,13 @@ function runPostHocTukey(groups, groupNames, msw, df2) {
   const k = groups.length;
   const means = groups.map((g) => getMean(g));
   const ns = groups.map((g) => g.length);
-  const qCrit = getTukeyQ(k, df2); // 動態取得臨界值
+  const qCrit = getTukeyQ(k, df2);
 
   for (let i = 0; i < k; i++) {
     for (let j = i + 1; j < k; j++) {
       const diff = Math.abs(means[i] - means[j]);
-      // Tukey 檢定的 Standard Error 公式: SE = sqrt(MSw / n)
-      // 若組別樣本數不等，採用 Tukey-Kramer 近似: sqrt((MSw/2) * (1/ni + 1/nj))
+
+      // ✨ 修正點：使用 Tukey-Kramer 修正公式，這對各組人數不等時更準確（同 Minitab）
       const se = Math.sqrt((msw / 2) * (1 / ns[i] + 1 / ns[j]));
       const qValue = diff / se;
 
@@ -277,14 +313,53 @@ function runPostHocTukey(groups, groupNames, msw, df2) {
         pair: `${groupNames[i]} vs ${groupNames[j]}`,
         diff: diff.toFixed(4),
         qValue: qValue.toFixed(4),
-        qCrit: qCrit,
-        isSignificant: qValue > qCrit,
+        qCrit: qCrit.toFixed(3), // 顯示臨界值供對照
+        isSignificant: qValue >= qCrit, // 使用大於等於
       });
     }
   }
   return results;
 }
 
+/**
+ * 執行 Games–Howell 事後檢定 (適用於變異數不齊一)
+ */
+function runPostHocGamesHowell(groups, groupNames) {
+  let results = [];
+  const k = groups.length;
+  const means = groups.map((g) => getMean(g));
+  const vars = groups.map((g, i) => getVar(g, means[i]));
+  const ns = groups.map((g) => g.length);
+
+  for (let i = 0; i < k; i++) {
+    for (let j = i + 1; j < k; j++) {
+      const diff = Math.abs(means[i] - means[j]);
+      // 計算 Games-Howell 標準誤差
+      const se = Math.sqrt(vars[i] / ns[i] + vars[j] / ns[j]);
+      const tValue = diff / se;
+
+      // 計算修正後的自由度 (Welch-Satterthwaite)
+      const df =
+        Math.pow(vars[i] / ns[i] + vars[j] / ns[j], 2) /
+        (Math.pow(vars[i] / ns[i], 2) / (ns[i] - 1) +
+          Math.pow(vars[j] / ns[j], 2) / (ns[j] - 1));
+
+      // 取得對應的 Q 臨界值 (Games-Howell 通常也參考 Tukey Q 分佈)
+      const qCrit = getTukeyQ(k, df);
+      const qValue = tValue * Math.sqrt(2); // 轉換為 Q 統計量
+
+      results.push({
+        pair: `${groupNames[i]} vs ${groupNames[j]}`,
+        diff: diff.toFixed(4),
+        qValue: qValue.toFixed(4),
+        qCrit: qCrit.toFixed(3),
+        isSignificant: qValue >= qCrit,
+        method: "Games-Howell",
+      });
+    }
+  }
+  return results;
+}
 /**
  * 執行 Levene's Test (變異數同質性檢定 - Brown-Forsythe 修正版)
  */
@@ -333,7 +408,9 @@ function calculateAdvancedStats(logicalGroups, targetValue, isPairedMode) {
   } else if (groupNames.length >= 3) {
     const groupsArray = groupNames.map((n) => logicalGroups[n]);
     const levA = leveneTest(groupsArray);
-    const anova = levA.isHomogeneous ? oneWayAnova(groupsArray) : welchAnova(groupsArray);
+    const anova = levA.isHomogeneous
+      ? oneWayAnova(groupsArray)
+      : welchAnova(groupsArray);
     result.type = "ANOVA";
     result.data = anova;
     if (anova.p < 0.05) {
@@ -399,12 +476,14 @@ function getAdvancedStatsResult(logicalGroups, targetValue, isPairedMode) {
 
 function welchAnova(groups) {
   const k = groups.length;
-  const ns = groups.map(g => g.length);
-  const means = groups.map(g => g.reduce((a, b) => a + b, 0) / g.length);
+  const ns = groups.map((g) => g.length);
+  const means = groups.map((g) => g.reduce((a, b) => a + b, 0) / g.length);
 
   // 邊界檢查：計算變異數，若為 0 則給予極小值以維持數值穩定
   const vars = groups.map((g, i) => {
-    const v = g.reduce((acc, val) => acc + Math.pow(val - means[i], 2), 0) / (g.length - 1);
+    const v =
+      g.reduce((acc, val) => acc + Math.pow(val - means[i], 2), 0) /
+      (g.length - 1);
     return v === 0 ? 1e-10 : v;
   });
 
@@ -415,8 +494,13 @@ function welchAnova(groups) {
   const hi = weights.map((w, i) => Math.pow(1 - w / sumW, 2) / (ns[i] - 1));
   const sumHi = hi.reduce((a, b) => a + b, 0);
 
-  const F = (weights.reduce((acc, w, i) => acc + w * Math.pow(means[i] - grandMean, 2), 0) / (k - 1)) /
-    (1 + (2 * (k - 2) / (k * k - 1)) * sumHi);
+  const F =
+    weights.reduce(
+      (acc, w, i) => acc + w * Math.pow(means[i] - grandMean, 2),
+      0
+    ) /
+    (k - 1) /
+    (1 + ((2 * (k - 2)) / (k * k - 1)) * sumHi);
 
   const df1 = k - 1;
   const df2 = (k * k - 1) / (3 * sumHi);
@@ -510,5 +594,3 @@ function twoWayAnova(factorData) {
     error: { df: dfE, ms: msE },
   };
 }
-
-
