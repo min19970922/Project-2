@@ -1,262 +1,363 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Chart 34.5 - 進階統計與趨勢系統</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<head>
-  <meta charset="UTF-8" />
-  <title>Chart 34.5 - 進階統計與趨勢系統</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.1.0"></script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jstat@latest/dist/jstat.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.1.0"></script>
-  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jstat@latest/dist/jstat.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
-  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Calibri:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
 
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Calibri:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
 
-  <link rel="stylesheet" href="style.css" />
-</head>
+  <body>
+    <div id="loadingOverlay">
+      <div>正在處理...</div>
+      <div style="font-size: 16px; margin-top: 10px">請稍候</div>
+    </div>
 
-<body>
-  <div id="loadingOverlay">
-    <div>正在處理...</div>
-    <div style="font-size: 16px; margin-top: 10px">請稍候</div>
-  </div>
-
-  <div class="box">
-    <details open class="settings-panel">
-      <summary style="
+    <div class="box">
+      <details open class="settings-panel">
+        <summary
+          style="
             display: flex;
             justify-content: space-between;
             align-items: center;
-          ">
-        <span>⚙️ 圖表與統計設定面板</span>
-        <button class="a" onclick="event.stopPropagation(); saveSettings()" style="
+          "
+        >
+          <span>⚙️ 圖表與統計設定面板</span>
+          <button
+            class="a"
+            onclick="event.stopPropagation(); saveSettings()"
+            style="
               background: #e325a4;
               margin: 0;
               padding: 8px 20px;
               font-size: 18px;
               border-radius: 12px;
-            ">
-          💾 儲存目前面板配置
-        </button>
-      </summary>
+            "
+          >
+            💾 儲存目前面板配置
+          </button>
+        </summary>
 
-      <div class="settings-grid">
-        <!-- 基礎顯示設定 -->
-        <div class="control-card">
-          <div class="card-title title-blue">📊 基礎顯示設定</div>
-          <div class="form-grid cols-3">
-            <div class="input-group horizontal span-full">
-              <label>標題</label>
-              <input type="text" id="mainTitle" placeholder="請輸入標題" />
-              <label style="margin-left: 10px">大小</label>
-              <input type="number" id="titleFontSize" value="48" style="width: 80px" />
-            </div>
-            <div class="input-group">
-              <label>左 Y 軸單位</label>
-              <input type="text" id="yUnitLeft" placeholder="如: mm" />
-            </div>
-            <div class="input-group">
-              <label>右 Y 軸單位</label>
-              <input type="text" id="yUnitRight" placeholder="如: %" />
-            </div>
-            <div class="input-group">
-              <label>通用字體</label>
-              <input type="number" id="fontSize" value="30" />
-            </div>
-            <div class="input-group">
-              <label>線條寬度</label>
-              <input type="number" id="lineWidth" value="3" />
-            </div>
-            <div class="input-group">
-              <label>點大小</label>
-              <input type="number" id="pointSize" value="5" />
-            </div>
-            <div class="input-group">
-              <label>圖表高度</label>
-              <input type="number" id="chartHeight" value="1000" step="50" />
+        <div class="settings-grid">
+          <!-- 基礎顯示設定 -->
+          <div class="control-card">
+            <div class="card-title title-blue">📊 基礎顯示設定</div>
+            <div class="form-grid cols-3">
+              <div class="input-group horizontal span-full">
+                <label>標題</label>
+                <input type="text" id="mainTitle" placeholder="請輸入標題" />
+                <label style="margin-left: 10px">大小</label>
+                <input
+                  type="number"
+                  id="titleFontSize"
+                  value="48"
+                  style="width: 80px"
+                />
+              </div>
+              <div class="input-group">
+                <label>左軸單位</label>
+                <input type="text" id="yUnitLeft" placeholder="如: mm" />
+              </div>
+              <div class="input-group">
+                <label>右軸單位</label>
+                <input type="text" id="yUnitRight" placeholder="如: %" />
+              </div>
+              <div class="input-group">
+                <label>通用字體</label>
+                <input type="number" id="fontSize" value="30" />
+              </div>
+              <div class="input-group">
+                <label>線條寬度</label>
+                <input type="number" id="lineWidth" value="3" />
+              </div>
+              <div class="input-group">
+                <label>點大小</label>
+                <input type="number" id="pointSize" value="5" />
+              </div>
+              <div class="input-group">
+                <label>圖表高度</label>
+                <input type="number" id="chartHeight" value="1000" step="50" />
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- 規格與座標 -->
-        <div class="control-card">
-          <div class="card-title title-red">📏 規格與座標</div>
-          <div class="form-grid" style="
+          <!-- 規格與座標 -->
+          <div class="control-card">
+            <div class="card-title title-red">📏 規格與座標</div>
+            <div
+              class="form-grid"
+              style="
                 display: grid;
                 grid-template-columns: repeat(12, 1fr);
                 gap: 12px;
                 padding: 16px;
-              ">
-            <div class="input-group" style="grid-column: span 3">
-              <label>LSL</label>
-              <input id="specLSL" type="number" step="any" placeholder="自動" class="no-spinners" />
-            </div>
-            <div class="input-group" style="grid-column: span 3">
-              <label>Target</label>
-              <input id="specTarget" type="number" step="any" placeholder="無" class="no-spinners" />
-            </div>
-            <div class="input-group" style="grid-column: span 3">
-              <label>USL</label>
-              <input id="specUSL" type="number" step="any" placeholder="自動" class="no-spinners" />
-            </div>
-            <div class="input-group" style="grid-column: span 3">
-              <label>樣式</label>
-              <div style="display: flex; gap: 5px">
-                <select id="specLineStyle" style="flex: 1">
-                  <option value="dashed">虛線</option>
-                  <option value="solid">實線</option>
-                </select>
-                <input id="specLineColor" type="color" value="#e74c3c"
-                  style="width: 40px; height: 35px; padding: 0; border: none" />
+              "
+            >
+              <div class="input-group" style="grid-column: span 3">
+                <label>LSL</label>
+                <input
+                  id="specLSL"
+                  type="number"
+                  step="any"
+                  placeholder="自動"
+                  class="no-spinners"
+                />
+              </div>
+              <div class="input-group" style="grid-column: span 3">
+                <label>Target</label>
+                <input
+                  id="specTarget"
+                  type="number"
+                  step="any"
+                  placeholder="無"
+                  class="no-spinners"
+                />
+              </div>
+              <div class="input-group" style="grid-column: span 3">
+                <label>USL</label>
+                <input
+                  id="specUSL"
+                  type="number"
+                  step="any"
+                  placeholder="自動"
+                  class="no-spinners"
+                />
+              </div>
+              <div class="input-group" style="grid-column: span 3">
+                <label>樣式</label>
+                <div style="display: flex; gap: 5px">
+                  <select id="specLineStyle" style="flex: 1">
+                    <option value="dashed">虛線</option>
+                    <option value="solid">實線</option>
+                  </select>
+                  <input
+                    id="specLineColor"
+                    type="color"
+                    value="#e74c3c"
+                    style="width: 40px; height: 35px; padding: 0; border: none"
+                  />
+                </div>
+              </div>
+
+              <div class="input-group" style="grid-column: span 3">
+                <label>Y最小</label>
+                <input type="number" id="yMinLeft" placeholder="自動" />
+              </div>
+              <div class="input-group" style="grid-column: span 3">
+                <label>Y最大</label>
+                <input type="number" id="yMaxLeft" placeholder="自動" />
+              </div>
+              <div class="input-group" style="grid-column: span 3">
+                <label>Y間距</label>
+                <input type="number" id="yStepLeft" placeholder="自動" />
+              </div>
+              <div class="input-group" style="grid-column: span 3">
+                <label>標籤大小</label>
+                <input type="number" id="statFontSize" value="30" />
+              </div>
+
+              <div class="input-group" style="grid-column: span 4">
+                <label>盒寬</label>
+                <input type="number" id="boxGap" value="0.3" step="0.05" />
+              </div>
+              <div class="input-group" style="grid-column: span 4">
+                <label>極值X</label>
+                <input type="number" id="extremeXOffsetInput" value="32" />
+              </div>
+              <div class="input-group" style="grid-column: span 4">
+                <label>均值X</label>
+                <input type="number" id="meanMedianXOffsetInput" value="25" />
               </div>
             </div>
-
-            <div class="input-group" style="grid-column: span 3">
-              <label>Y 最小</label>
-              <input type="number" id="yMinLeft" placeholder="自動" />
-            </div>
-            <div class="input-group" style="grid-column: span 3">
-              <label>Y 最大</label>
-              <input type="number" id="yMaxLeft" placeholder="自動" />
-            </div>
-            <div class="input-group" style="grid-column: span 3">
-              <label>Y 間距</label>
-              <input type="number" id="yStepLeft" placeholder="自動" />
-            </div>
-            <div class="input-group" style="grid-column: span 3">
-              <label>標籤大小</label>
-              <input type="number" id="statFontSize" value="30" />
-            </div>
-
-            <div class="input-group" style="grid-column: span 4">
-              <label>盒寬</label>
-              <input type="number" id="boxGap" value="0.3" step="0.05" />
-            </div>
-            <div class="input-group" style="grid-column: span 4">
-              <label>極值X</label>
-              <input type="number" id="extremeXOffsetInput" value="32" />
-            </div>
-            <div class="input-group" style="grid-column: span 4">
-              <label>均值X</label>
-              <input type="number" id="meanMedianXOffsetInput" value="25" />
-            </div>
-          </div>
-        </div>
-
-        <!-- 圖表模式與細節 -->
-        <div class="control-card">
-          <div class="card-title title-pink">📈 圖表模式與細節</div>
-          <div class="checkbox-list" style="grid-template-columns: repeat(2, 1fr); padding-bottom: 0">
-            <label class="checkbox-item"><input type="checkbox" id="showBox" class="chart-mode-cb" checked />
-              盒鬚圖</label>
-            <label class="checkbox-item"><input type="checkbox" id="modeLine" class="chart-mode-cb" />
-              折線圖</label>
-            <label class="checkbox-item"><input type="checkbox" id="modeBar" class="chart-mode-cb" />
-              柱狀圖</label>
-            <label class="checkbox-item"><input type="checkbox" id="modeMixed" class="chart-mode-cb" />
-              折線柱狀</label>
           </div>
 
-          <div style="height: 1px; background: #eee; margin: 5px 16px"></div>
+          <!-- 圖表模式與細節 -->
+          <div class="control-card">
+            <div class="card-title title-pink">📈 圖表模式與細節</div>
+            <div
+              class="checkbox-list"
+              style="grid-template-columns: repeat(2, 1fr); padding-bottom: 0"
+            >
+              <label class="checkbox-item"
+                ><input
+                  type="checkbox"
+                  id="showBox"
+                  class="chart-mode-cb"
+                  checked
+                />
+                盒鬚圖</label
+              >
+              <label class="checkbox-item"
+                ><input type="checkbox" id="modeLine" class="chart-mode-cb" />
+                折線圖</label
+              >
+              <label class="checkbox-item"
+                ><input type="checkbox" id="modeBar" class="chart-mode-cb" />
+                柱狀圖</label
+              >
+              <label class="checkbox-item"
+                ><input type="checkbox" id="modeMixed" class="chart-mode-cb" />
+                折線柱狀</label
+              >
+            </div>
 
-          <div class="checkbox-list" style="grid-template-columns: repeat(3, 1fr); padding-top: 10px">
-            <label class="checkbox-item"><input type="checkbox" id="showDot" /> 點圖</label>
-            <label class="checkbox-item"><input type="checkbox" id="showOutliers" checked />
-              離群值</label>
-            <label class="checkbox-item"><input type="checkbox" id="showAllPoints" /> 所有點</label>
-            <label class="checkbox-item"><input type="checkbox" id="showMean" checked /> 平均值</label>
-            <label class="checkbox-item"><input type="checkbox" id="showMedian" /> 中位數</label>
-            <label class="checkbox-item"><input type="checkbox" id="showExtremes" checked /> 極值</label>
-            <label class="checkbox-item"><input type="checkbox" id="showGrid" /> 格線</label>
-            <label class="checkbox-item"><input type="checkbox" id="useBoldFont" checked /> 粗體</label>
-            <div class="span-full" style="grid-column: span 3"></div>
+            <div style="height: 1px; background: #eee; margin: 5px 16px"></div>
 
-            <div style="
+            <div
+              class="checkbox-list"
+              style="grid-template-columns: repeat(3, 1fr); padding-top: 10px"
+            >
+              <label class="checkbox-item"
+                ><input type="checkbox" id="showDot" /> 點圖</label
+              >
+              <label class="checkbox-item"
+                ><input type="checkbox" id="showOutliers" checked />
+                離群值</label
+              >
+              <label class="checkbox-item"
+                ><input type="checkbox" id="showAllPoints" /> 所有點</label
+              >
+              <label class="checkbox-item"
+                ><input type="checkbox" id="showMean" checked /> 平均值</label
+              >
+              <label class="checkbox-item"
+                ><input type="checkbox" id="showMedian" /> 中位數</label
+              >
+              <label class="checkbox-item"
+                ><input type="checkbox" id="showExtremes" checked /> 極值</label
+              >
+              <label class="checkbox-item"
+                ><input type="checkbox" id="showGrid" /> 格線</label
+              >
+              <label class="checkbox-item"
+                ><input type="checkbox" id="useBoldFont" checked /> 粗體</label
+              >
+              <div class="span-full" style="grid-column: span 3"></div>
+
+              <div
+                style="
                   grid-column: span 3;
                   height: 1px;
                   background: #eee;
                   margin: 5px 0;
-                "></div>
+                "
+              ></div>
 
-            <label class="checkbox-item"><input type="checkbox" id="showPValue" /> P-Value</label>
-            <label class="checkbox-item"><input type="checkbox" id="showPairedP" /> 成對T檢定</label>
-          </div>
-        </div>
-
-        <!-- 製程能力分析 -->
-        <div class="control-card">
-          <div class="card-title title-yellow">🏭 製程能力分析 (SPC)</div>
-          <div class="form-grid">
-            <div class="span-full">
-              <label class="checkbox-item" style="font-weight: bold">
-                <input type="checkbox" id="showCapability" /> 啟用 Cp/Cpk 報告
-              </label>
-            </div>
-            <div class="input-group span-full">
-              <label>子組分配模式</label>
-              <select id="subgroupMode">
-                <option value="fixed">固定大小 (Fixed Size)</option>
-                <option value="column">以欄位為子組 (By Column)</option>
-                <option value="row">以橫列為子組 (By Row)</option>
-              </select>
-            </div>
-            <div class="input-group">
-              <label>子組大小</label>
-              <input type="number" id="subgroupSizeInput" placeholder="預設 1" />
-            </div>
-            <div class="input-group">
-              <label>標準差計算</label>
-              <select id="stdDevMethod">
-                <option value="pooled" selected>Pooled SD</option>
-                <option value="sbar">S-Bar</option>
-                <option value="rbar">R-Bar</option>
-              </select>
-            </div>
-            <div class="span-full">
-              <label class="checkbox-item" style="color: #d35400">
-                <input type="checkbox" id="combineGroups" /> 全域合併計算
-                (Global)
-              </label>
+              <label class="checkbox-item"
+                ><input type="checkbox" id="showPValue" /> P-Value</label
+              >
+              <label class="checkbox-item"
+                ><input type="checkbox" id="showPairedP" /> 成對T檢定</label
+              >
             </div>
           </div>
-        </div>
-      </div>
-    </details>
 
-    <div class="header-container">
-      <div class="header-left">
-        <button class="s" onclick="document.getElementById('importExcel').click()">
-          匯入 Excel
-        </button>
-        <button class="s" onclick="exportExcel()">匯出 Excel</button>
-        <button class="s-img" onclick="exportImagesToExcel()">
-          匯出圖表至 Excel
-        </button>
-        <input type="file" id="importExcel" accept=".xlsx,.xls" style="display: none" multiple
-          onchange="importMultipleExcels(this.files)" />
-      </div>
-      <div class="header-center">
-        <h1>Chart 34.5</h1>
-      </div>
-      <div class="header-right">
-        <div style="position: relative; align-self: center">
-          <details id="quickHelp">
-            <summary style="
+          <!-- 製程能力分析 -->
+          <div class="control-card">
+            <div class="card-title title-yellow">🏭 製程能力分析 (SPC)</div>
+            <div class="form-grid">
+              <div class="span-full">
+                <label class="checkbox-item" style="font-weight: bold">
+                  <input type="checkbox" id="showCapability" /> 啟用 Cp/Cpk 報告
+                </label>
+              </div>
+              <div class="input-group span-full">
+                <label>子組分配模式</label>
+                <select id="subgroupMode">
+                  <option value="fixed">固定大小 (Fixed Size)</option>
+                  <option value="column">以欄位為子組 (By Column)</option>
+                  <option value="row">以橫列為子組 (By Row)</option>
+                </select>
+              </div>
+              <div class="input-group">
+                <label>子組大小</label>
+                <input
+                  type="number"
+                  id="subgroupSizeInput"
+                  placeholder="預設 1"
+                />
+              </div>
+              <div class="input-group">
+                <label>標準差計算</label>
+                <select id="stdDevMethod">
+                  <option value="pooled" selected>Pooled SD</option>
+                  <option value="sbar">S-Bar</option>
+                  <option value="rbar">R-Bar</option>
+                </select>
+              </div>
+              <div class="span-full">
+                <label class="checkbox-item" style="color: #d35400">
+                  <input type="checkbox" id="combineGroups" /> 全域合併計算
+                  (Global)
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <div class="header-container">
+        <div class="header-left">
+          <button
+            class="s"
+            onclick="document.getElementById('importExcel').click()"
+          >
+            匯入 Excel
+          </button>
+          <button class="s" onclick="exportExcel()">匯出 Excel</button>
+          <button class="s-img" onclick="exportImagesToExcel()">
+            匯出圖表至 Excel
+          </button>
+          <input
+            type="file"
+            id="importExcel"
+            accept=".xlsx,.xls"
+            style="display: none"
+            multiple
+            onchange="importMultipleExcels(this.files)"
+          />
+        </div>
+        <div class="header-center">
+          <h1>Chart 34.5</h1>
+        </div>
+        <div class="header-right">
+          <div style="position: relative; align-self: center">
+            <details id="quickHelp">
+              <summary
+                style="
                   list-style: none;
                   display: flex;
                   align-items: center;
                   cursor: pointer;
-                ">
-              <span class="material-icons"
-                style="font-size: 38px; color: #e67e22; margin-right: 10px">manage_search</span>
-            </summary>
-            <div style="
+                "
+              >
+                <span
+                  class="material-icons"
+                  style="font-size: 38px; color: #e67e22; margin-right: 10px"
+                  >manage_search</span
+                >
+              </summary>
+              <div
+                style="
                   position: absolute;
                   right: 0;
                   top: 50px;
@@ -268,226 +369,272 @@
                   box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3);
                   z-index: 1000;
                   font-family: 'Microsoft JhengHei', sans-serif;
-                ">
-              <div style="
+                "
+              >
+                <div
+                  style="
                     font-weight: bold;
                     font-size: 24px;
                     color: #e67e22;
                     margin-bottom: 15px;
                     border-bottom: 2px solid #eee;
                     padding-bottom: 10px;
-                  ">
-                🔍 使用說明
-              </div>
+                  "
+                >
+                  🔍 使用說明
+                </div>
 
-              <ul style="
+                <ul
+                  style="
                     margin: 0;
                     padding-left: 25px;
                     line-height: 2;
                     color: #222;
                     font-size: 19px;
                     text-align: left;
-                  ">
-                <li>
-                  <strong>數據匯入：</strong>點擊「匯入
-                  Excel」或開啟表格編輯模式手動貼上數據。
-                </li>
-                <li>
-                  <strong>儲存面板設定：</strong>點擊基礎顯示設定中的
-                  <span style="color: #d35400">儲存設定</span>，可保留圖表與統計設定面板中所有狀態。
-                </li>
-              </ul>
+                  "
+                >
+                  <li>
+                    <strong>數據匯入：</strong>點擊「匯入
+                    Excel」或開啟表格編輯模式手動貼上數據。
+                  </li>
+                  <li>
+                    <strong>儲存面板設定：</strong>點擊基礎顯示設定中的
+                    <span style="color: #d35400">儲存設定</span
+                    >，可保留圖表與統計設定面板中所有狀態。
+                  </li>
+                </ul>
 
-              <div style="
+                <div
+                  style="
                     font-size: 18px;
                     color: #2c83e0;
                     font-weight: bold;
                     margin: 20px 0 5px 0;
-                  ">
-                📈 折線柱狀及混合圖 (Line / Bar / Mixed)
-              </div>
-              <hr style="
+                  "
+                >
+                  📈 折線柱狀及混合圖 (Line / Bar / Mixed)
+                </div>
+                <hr
+                  style="
                     border: 0;
                     border-top: 1px solid #eee;
                     margin: 5px 0 10px 0;
-                  " />
-              <ul style="
+                  "
+                />
+                <ul
+                  style="
                     margin: 0;
                     padding-left: 25px;
                     line-height: 1.8;
                     color: #333;
                     font-size: 17px;
                     text-align: left;
-                  ">
-                <li>
-                  <strong>混合圖：</strong>若組別名稱以<span style="color: #d30000">-line</span>結尾，該數據將自動轉換為折線圖並掛載於右側 Y 軸。
-                </li>
-                <li>
-                  <strong>柱狀粗細控制：</strong>透過面板中的「盒寬」數值來控制柱狀圖的寬度。
-                </li>
-                <li>
-                  <strong>線條寬度與點大小：</strong>設定面板中的「線條寬度」與「點大小」可調整趨勢圖細節。
-                </li>
-              </ul>
+                  "
+                >
+                  <li>
+                    <strong>混合圖：</strong>若組別名稱以<span
+                      style="color: #d30000"
+                      >-line</span
+                    >結尾，該數據將自動轉換為折線圖並掛載於右側 Y 軸。
+                  </li>
+                  <li>
+                    <strong>柱狀粗細控制：</strong
+                    >透過面板中的「盒寬」數值來控制柱狀圖的寬度。
+                  </li>
+                  <li>
+                    <strong>線條寬度與點大小：</strong
+                    >設定面板中的「線條寬度」與「點大小」可調整趨勢圖細節。
+                  </li>
+                </ul>
 
-              <div style="
+                <div
+                  style="
                     font-size: 18px;
                     color: #2c83e0;
                     font-weight: bold;
                     margin: 20px 0 5px 0;
-                  ">
-                📈 盒鬚圖
-              </div>
-              <hr style="
+                  "
+                >
+                  📈 盒鬚圖
+                </div>
+                <hr
+                  style="
                     border: 0;
                     border-top: 1px solid #eee;
                     margin: 5px 0 10px 0;
-                  " />
-              <ul style="
+                  "
+                />
+                <ul
+                  style="
                     margin: 0;
                     padding-left: 25px;
                     line-height: 1.8;
                     color: #333;
                     font-size: 17px;
                     text-align: left;
-                  ">
-                <li>
-                  <strong>分組標記：</strong>組別名稱使用
-                  <span style="color: #d30000">分組 / 項目</span>
-                  格式，點擊左上角🎨可自動配色。
-                </li>
-                <li>
-                  <strong>刪除異常數據：</strong>在圖表上點擊該點，按
-                  <span style="color: #d30000">Delete</span> 或
-                  <span style="color: #d30000">Backspace</span> 即可剔除。
-                </li>
-              </ul>
+                  "
+                >
+                  <li>
+                    <strong>分組標記：</strong>組別名稱使用
+                    <span style="color: #d30000">分組 / 項目</span>
+                    格式，點擊左上角🎨可自動配色。
+                  </li>
+                  <li>
+                    <strong>刪除異常數據：</strong>在圖表上點擊該點，按
+                    <span style="color: #d30000">Delete</span> 或
+                    <span style="color: #d30000">Backspace</span> 即可剔除。
+                  </li>
+                </ul>
 
-              <div style="
+                <div
+                  style="
                     font-size: 18px;
                     color: #2c83e0;
                     font-weight: bold;
                     margin: 20px 0 5px 0;
-                  ">
-                🏭 製程能力分析 (Cp/Cpk)
-              </div>
-              <hr style="
+                  "
+                >
+                  🏭 製程能力分析 (Cp/Cpk)
+                </div>
+                <hr
+                  style="
                     border: 0;
                     border-top: 1px solid #eee;
                     margin: 5px 0 10px 0;
-                  " />
-              <ul style="
+                  "
+                />
+                <ul
+                  style="
                     margin: 0;
                     padding-left: 25px;
                     line-height: 1.8;
                     color: #333;
                     font-size: 17px;
                     text-align: left;
-                  ">
-                <li>
-                  <strong>能力分析：</strong>組別名稱後加{LSL, Target,
-                  USL}，系統將自動繪製個別規格線。
-                </li>
-                <li>
-                  <strong>Pooled SD (合併標準差)：</strong>考慮所有子組變異進行加權，是目前最通用穩健的估計法。
-                </li>
-                <li>
-                  <strong>S-Bar (平均標準差)：</strong>使用子組標準差平均值估計，適用於子組大小一致時。
-                </li>
-                <li>
-                  <strong>R-Bar (平均全距)：</strong>傳統管制圖常用快速估計法，適用於子組樣本數較少 (n &lt; 10)
-                  時。
-                </li>
-              </ul>
+                  "
+                >
+                  <li>
+                    <strong>能力分析：</strong>組別名稱後加{LSL, Target,
+                    USL}，系統將自動繪製個別規格線。
+                  </li>
+                  <li>
+                    <strong>Pooled SD (合併標準差)：</strong
+                    >考慮所有子組變異進行加權，是目前最通用穩健的估計法。
+                  </li>
+                  <li>
+                    <strong>S-Bar (平均標準差)：</strong
+                    >使用子組標準差平均值估計，適用於子組大小一致時。
+                  </li>
+                  <li>
+                    <strong>R-Bar (平均全距)：</strong
+                    >傳統管制圖常用快速估計法，適用於子組樣本數較少 (n &lt; 10)
+                    時。
+                  </li>
+                </ul>
 
-              <div style="
+                <div
+                  style="
                     font-size: 18px;
                     color: #2c83e0;
                     font-weight: bold;
                     margin: 20px 0 5px 0;
-                  ">
-                📊 P-Value 統計檢定
-              </div>
-              <hr style="
+                  "
+                >
+                  📊 P-Value 統計檢定
+                </div>
+                <hr
+                  style="
                     border: 0;
                     border-top: 1px solid #eee;
                     margin: 5px 0 10px 0;
-                  " />
-              <ul style="
+                  "
+                />
+                <ul
+                  style="
                     margin: 0;
                     padding-left: 25px;
                     line-height: 1.8;
                     color: #333;
                     font-size: 17px;
                     text-align: left;
-                  ">
-                <li>
-                  <strong>單一分組 (One-sample T)：</strong>用於檢定數據平均值是否與目標值有顯著差異。
-                </li>
-                <li>
-                  <strong>成對 T 檢定：</strong>適用於同一組對象在實驗前後的數據比較（兩組長度須相等）。
-                </li>
-                <li>
-                  <strong>獨立樣本 T 檢定 (Independent T-test)：</strong>適用於比較兩組不同對象的平均值差異。
-                </li>
-                <li>
-                  <strong>多組比較 (One-way ANOVA)：</strong>當分組達三組以上時，檢定是否至少有一組存在顯著不同。
-                </li>
-                <li>
-                  <strong>數據診斷機制：</strong>使用Levene's Test
-                  (Brown-Forsythe)自動檢測數據的變異數齊一性，若不符合前提，將自動切換至更穩健的
-                  Welch 修正算法。
-                </li>
-                <li>
-                  <strong>事後檢定 (Post-hoc Tukey)：</strong>ANOVA
-                  顯著時自動啟動，並用 🚩 標記具體差異組對。
-                </li>
-                <li>
-                  <strong>雙因子變異數分析 (Two-way ANOVA)：</strong>格式為：因子A_因子B，系統會自動抓取底線前後的共通前綴字眼作為因子名稱並執行雙因子分析。
-                </li>
-              </ul>
-            </div>
-          </details>
+                  "
+                >
+                  <li>
+                    <strong>單一分組 (One-sample T)：</strong
+                    >用於檢定數據平均值是否與目標值有顯著差異。
+                  </li>
+                  <li>
+                    <strong>成對 T 檢定：</strong
+                    >適用於同一組對象在實驗前後的數據比較（兩組長度須相等）。
+                  </li>
+                  <li>
+                    <strong>獨立樣本 T 檢定 (Independent T-test)：</strong
+                    >適用於比較兩組不同對象的平均值差異。
+                  </li>
+                  <li>
+                    <strong>多組比較 (One-way ANOVA)：</strong
+                    >當分組達三組以上時，檢定是否至少有一組存在顯著不同。
+                  </li>
+                  <li>
+                    <strong>數據診斷機制：</strong>使用Levene's Test
+                    (Brown-Forsythe)自動檢測數據的變異數齊一性，若不符合前提，將自動切換至更穩健的
+                    Welch 修正算法。
+                  </li>
+                  <li>
+                    <strong>事後檢定 (Post-hoc Tukey)：</strong>ANOVA
+                    顯著時自動啟動，並用 🚩 標記具體差異組對。
+                  </li>
+                  <li>
+                    <strong>雙因子變異數分析 (Two-way ANOVA)：</strong
+                    >格式為：因子A_因子B，系統會自動抓取底線前後的共通前綴字眼作為因子名稱並執行雙因子分析。
+                  </li>
+                </ul>
+              </div>
+            </details>
+          </div>
+          <button class="table-toggle-btn" onclick="toggleTableEditor()">
+            表格編輯
+          </button>
+          <button class="d" onclick="go()">生成圖表</button>
         </div>
-        <button class="table-toggle-btn" onclick="toggleTableEditor()">
-          表格編輯
-        </button>
-        <button class="d" onclick="go()">生成圖表</button>
       </div>
-    </div>
 
-    <div id="tableEditorSection" tabindex="0">
-      <div style="
+      <div id="tableEditorSection" tabindex="0">
+        <div
+          style="
             margin-bottom: 15px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-          ">
-        <button class="a" onclick="addNewColumn()">＋ 新增數據組別</button>
-        <div style="
+          "
+        >
+          <button class="a" onclick="addNewColumn()">＋ 新增數據組別</button>
+          <div
+            style="
               font-size: 14px;
               color: #e67e22;
               background: #fff8e1;
               padding: 5px 15px;
               border-radius: 5px;
               border: 1px solid #ffe0b2;
-            ">
-          💡 支援 Excel 直接貼上 (Ctrl+V)；第一欄可輸入文字標籤。
+            "
+          >
+            💡 支援 Excel 直接貼上 (Ctrl+V)；第一欄可輸入文字標籤。
+          </div>
         </div>
+        <div id="tableContainer"></div>
       </div>
-      <div id="tableContainer"></div>
+
+      <div id="charts"></div>
+      <div id="statisticsResult"></div>
     </div>
 
-    <div id="charts"></div>
-    <div id="statisticsResult"></div>
-  </div>
-
-  <script src="js/mathUtils.js"></script>
-  <script src="js/tableEditor.js"></script>
-  <script src="js/chartRenderer.js"></script>
-  <script src="js/fileHandler.js"></script>
-  <script src="js/settings.js"></script>
-  <script src="js/main.js"></script>
-</body>
-
+    <script src="js/mathUtils.js"></script>
+    <script src="js/tableEditor.js"></script>
+    <script src="js/chartRenderer.js"></script>
+    <script src="js/fileHandler.js"></script>
+    <script src="js/settings.js"></script>
+    <script src="js/main.js"></script>
+  </body>
 </html>
