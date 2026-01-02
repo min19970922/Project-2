@@ -6,7 +6,9 @@ function go() {
   const scrollPos = window.scrollY;
   // --- 1. 初始化與清空舊圖表 ---
   plotlyCharts.forEach((id) => {
-    try { Plotly.purge(id); } catch (e) { }
+    try {
+      Plotly.purge(id);
+    } catch (e) {}
   });
   plotlyCharts = [];
   capChartInstances.forEach((c) => c.destroy());
@@ -57,10 +59,12 @@ function go() {
 
   // --- 3. 讀取 UI 設定 ---
   const mainTitle = document.getElementById("mainTitle").value || "圖表";
-  const titleFontSize = parseInt(document.getElementById("titleFontSize").value) || 48;
+  const titleFontSize =
+    parseInt(document.getElementById("titleFontSize").value) || 48;
   const yUnit = document.getElementById("yUnitLeft").value;
   const fontSize = parseInt(document.getElementById("fontSize").value) || 16;
-  const statFontSize = parseInt(document.getElementById("statFontSize").value) || fontSize;
+  const statFontSize =
+    parseInt(document.getElementById("statFontSize").value) || fontSize;
   const lineWidth = parseInt(document.getElementById("lineWidth").value) || 3;
   const pointSize = parseInt(document.getElementById("pointSize").value) || 5;
   const specLSL = parseFloat(document.getElementById("specLSL").value);
@@ -73,28 +77,42 @@ function go() {
   const showCapability = document.getElementById("showCapability").checked;
   const combineGroups = document.getElementById("combineGroups").checked;
   const useBold = document.getElementById("useBoldFont").checked;
-  const yMin = document.getElementById("yMinLeft").value === "" ? null : parseFloat(document.getElementById("yMinLeft").value);
-  const yMax = document.getElementById("yMaxLeft").value === "" ? null : parseFloat(document.getElementById("yMaxLeft").value);
+  const yMin =
+    document.getElementById("yMinLeft").value === ""
+      ? null
+      : parseFloat(document.getElementById("yMinLeft").value);
+  const yMax =
+    document.getElementById("yMaxLeft").value === ""
+      ? null
+      : parseFloat(document.getElementById("yMaxLeft").value);
   const yStep = parseFloat(document.getElementById("yStepLeft").value) || null;
-  const chartHeight = parseInt(document.getElementById("chartHeight").value) || 600;
+  const chartHeight =
+    parseInt(document.getElementById("chartHeight").value) || 600;
   const boxGap = parseFloat(document.getElementById("boxGap").value) || 0.3;
-  const exX = parseInt(document.getElementById("extremeXOffsetInput").value) || 32;
-  const mmX = parseInt(document.getElementById("meanMedianXOffsetInput").value) || 25;
-
+  const exX =
+    parseInt(document.getElementById("extremeXOffsetInput").value) || 32;
+  const mmX =
+    parseInt(document.getElementById("meanMedianXOffsetInput").value) || 25;
 
   const logicalGroups = rawActiveGroups.reduce((acc, col) => {
-    const prefix = col.name.split("/")[0].trim();
+    const prefix = col.name.split("\\")[0].trim();
     if (!acc[prefix]) acc[prefix] = [];
     acc[prefix].push(...col.values.filter((v) => v !== null && !isNaN(v)));
     return acc;
   }, {});
 
-  const analysisResult = calculateAdvancedStats(logicalGroups, specTarget, document.getElementById("showPairedP")?.checked);
+  const analysisResult = calculateAdvancedStats(
+    logicalGroups,
+    specTarget,
+    document.getElementById("showPairedP")?.checked
+  );
 
   // --- 5. 繪製圖表 ---
   const groupNames = activeGroupsForPlot.map((c) => c.name);
   const colors = activeGroupsForPlot.map((c) => c.color);
-  const boxDataArray = activeGroupsForPlot.map((c) => c.values.filter((v) => v !== null && !isNaN(v)));
+  const boxDataArray = activeGroupsForPlot.map((c) =>
+    c.values.filter((v) => v !== null && !isNaN(v))
+  );
 
   if (showBox) {
     createPlotlyBoxChart(
@@ -111,7 +129,8 @@ function go() {
       yMin,
       yMax,
       yStep,
-      exX, mmX,
+      exX,
+      mmX,
       document.getElementById("showOutliers").checked,
       document.getElementById("showAllPoints").checked,
       statFontSize,
@@ -121,33 +140,106 @@ function go() {
     );
   }
 
-  const trendConfig = { fontSize, lineWidth, pointSize, chartHeight, useBold, titleFontSize, colors, boxGap };
-  if (document.getElementById("modeLine").checked) createPlotlyTrendChart(activeGroupsForPlot, mainTitle, yUnit, document.getElementById("yUnitRight").value || "", "charts", "line", trendConfig);
-  if (document.getElementById("modeBar").checked) createPlotlyTrendChart(activeGroupsForPlot, mainTitle, yUnit, document.getElementById("yUnitRight").value || "", "charts", "bar", trendConfig);
-  if (document.getElementById("modeMixed").checked) createPlotlyTrendChart(activeGroupsForPlot, mainTitle, yUnit, document.getElementById("yUnitRight").value || "", "charts", "mixed", trendConfig);
+  const trendConfig = {
+    fontSize,
+    lineWidth,
+    pointSize,
+    chartHeight,
+    useBold,
+    titleFontSize,
+    colors,
+    boxGap,
+  };
+  if (document.getElementById("modeLine").checked)
+    createPlotlyTrendChart(
+      activeGroupsForPlot,
+      mainTitle,
+      yUnit,
+      document.getElementById("yUnitRight").value || "",
+      "charts",
+      "line",
+      trendConfig
+    );
+  if (document.getElementById("modeBar").checked)
+    createPlotlyTrendChart(
+      activeGroupsForPlot,
+      mainTitle,
+      yUnit,
+      document.getElementById("yUnitRight").value || "",
+      "charts",
+      "bar",
+      trendConfig
+    );
+  if (document.getElementById("modeMixed").checked)
+    createPlotlyTrendChart(
+      activeGroupsForPlot,
+      mainTitle,
+      yUnit,
+      document.getElementById("yUnitRight").value || "",
+      "charts",
+      "mixed",
+      trendConfig
+    );
 
   if (showDot) {
-    const dotData = activeGroupsForPlot.map((g) => ({ label: g.name, values: g.values.filter((v) => v !== null && !isNaN(v)) }));
-    createClassicDotPlot(dotData, colors, mainTitle, yUnit, container, fontSize, yStep, document.getElementById("showGrid").checked, lineWidth, useBold, chartHeight, titleFontSize);
+    const dotData = activeGroupsForPlot.map((g) => ({
+      label: g.name,
+      values: g.values.filter((v) => v !== null && !isNaN(v)),
+    }));
+    createClassicDotPlot(
+      dotData,
+      colors,
+      mainTitle,
+      yUnit,
+      container,
+      fontSize,
+      yStep,
+      document.getElementById("showGrid").checked,
+      lineWidth,
+      useBold,
+      chartHeight,
+      titleFontSize
+    );
   }
 
   // --- 5. 執行進階統計檢定 ---
-  if (document.getElementById("showPValue")?.checked || document.getElementById("showPairedP")?.checked) {
+  if (
+    document.getElementById("showPValue")?.checked ||
+    document.getElementById("showPairedP")?.checked
+  ) {
     const isTwoWay = rawActiveGroups.every((g) => g.name.includes("_"));
     if (isTwoWay && !document.getElementById("showPairedP")?.checked) {
-      const allNames = rawActiveGroups.map(g => g.name.split("_"));
+      const allNames = rawActiveGroups.map((g) => g.name.split("_"));
       const extractFactor = (parts, idx) => {
-        let levels = parts.map(p => p[idx] || "");
+        let levels = parts.map((p) => p[idx] || "");
         let common = "";
         for (let i = 0; i < (levels[0] || "").length; i++) {
-          if (levels.every(s => s[i] === levels[0][i])) common += levels[0][i]; else break;
+          if (levels.every((s) => s[i] === levels[0][i]))
+            common += levels[0][i];
+          else break;
         }
-        return { factor: common.trim() || `因子 ${idx + 1}`, levels: levels.map(s => s.replace(common, "").trim() || s) };
+        return {
+          factor: common.trim() || `因子 ${idx + 1}`,
+          levels: levels.map((s) => s.replace(common, "").trim() || s),
+        };
       };
-      const fA = extractFactor(allNames, 0), fB = extractFactor(allNames, 1);
-      const input = rawActiveGroups.map((g, i) => ({ f1: fA.levels[i], f2: fB.levels[i], values: g.values.filter(v => v != null && !isNaN(v)) }));
+      const fA = extractFactor(allNames, 0),
+        fB = extractFactor(allNames, 1);
+      const input = rawActiveGroups.map((g, i) => ({
+        f1: fA.levels[i],
+        f2: fB.levels[i],
+        values: g.values.filter((v) => v != null && !isNaN(v)),
+      }));
       renderTwoWayTable(twoWayAnova(input), fA.factor, fB.factor);
-      createInteractionPlot(input, fA.factor, fB.factor, mainTitle, yUnit, "charts", { fontSize, lineWidth, pointSize, chartHeight, useBold, titleFontSize });
+      createInteractionPlot(
+        input,
+        fA.factor,
+        fB.factor,
+        mainTitle,
+        yUnit,
+        "charts",
+        { fontSize, lineWidth, pointSize, chartHeight, useBold, titleFontSize }
+      );
     } else {
       performAdvancedStats(rawActiveGroups, specTarget);
     }
@@ -159,21 +251,48 @@ function go() {
   // --- 6. 執行製程能力分析 ---
   if (showCapability) {
     const mode = document.getElementById("subgroupMode").value;
-    const size = parseInt(document.getElementById("subgroupSizeInput").value) || 1;
-    const capConfig = { LSL: specLSL, USL: specUSL, Target: specTarget, specColor: specLineColor, specStyle: specLineStyle, fontBaseSize: fontSize, lineWidth: lineWidth, step: yStep };
+    const size =
+      parseInt(document.getElementById("subgroupSizeInput").value) || 1;
+    const capConfig = {
+      LSL: specLSL,
+      USL: specUSL,
+      Target: specTarget,
+      specColor: specLineColor,
+      specStyle: specLineStyle,
+      fontBaseSize: fontSize,
+      lineWidth: lineWidth,
+      step: yStep,
+    };
     if (combineGroups) {
-      const allData = rawActiveGroups.flatMap((g) => g.values.filter((v) => v !== null && !isNaN(v)));
+      const allData = rawActiveGroups.flatMap((g) =>
+        g.values.filter((v) => v !== null && !isNaN(v))
+      );
       let subgroups = [];
-      if (mode === "column") subgroups = rawActiveGroups.map((g) => g.values.filter((v) => v !== null && !isNaN(v)));
+      if (mode === "column")
+        subgroups = rawActiveGroups.map((g) =>
+          g.values.filter((v) => v !== null && !isNaN(v))
+        );
       else if (mode === "row") {
         let maxLen = Math.max(...rawActiveGroups.map((g) => g.values.length));
         for (let i = 0; i < maxLen; i++) {
           let row = [];
-          rawActiveGroups.forEach((g) => { if (g.values[i] != null && !isNaN(g.values[i])) row.push(g.values[i]); });
+          rawActiveGroups.forEach((g) => {
+            if (g.values[i] != null && !isNaN(g.values[i]))
+              row.push(g.values[i]);
+          });
           if (row.length > 0) subgroups.push(row);
         }
-      } else { for (let i = 0; i < allData.length; i += size) subgroups.push(allData.slice(i, i + size)); }
-      renderCapabilityReport(container, allData, subgroups, mainTitle + " (Global)", capConfig);
+      } else {
+        for (let i = 0; i < allData.length; i += size)
+          subgroups.push(allData.slice(i, i + size));
+      }
+      renderCapabilityReport(
+        container,
+        allData,
+        subgroups,
+        mainTitle + " (Global)",
+        capConfig
+      );
     } else {
       rawActiveGroups.forEach((g) => {
         const d = g.values.filter((v) => v !== null && !isNaN(v));
@@ -186,14 +305,28 @@ function go() {
           const parts = specMatch[1].split(/[,，]/).map((s) => s.trim());
           if (parts.length >= 2) {
             if (parts[0]) localConfig.LSL = parseFloat(parts[0]);
-            if (parts.length === 3) { if (parts[1]) localConfig.Target = parseFloat(parts[1]); if (parts[2]) localConfig.USL = parseFloat(parts[2]); }
-            else if (parts.length === 2) { if (parts[1]) localConfig.USL = parseFloat(parts[1]); localConfig.Target = NaN; }
+            if (parts.length === 3) {
+              if (parts[1]) localConfig.Target = parseFloat(parts[1]);
+              if (parts[2]) localConfig.USL = parseFloat(parts[2]);
+            } else if (parts.length === 2) {
+              if (parts[1]) localConfig.USL = parseFloat(parts[1]);
+              localConfig.Target = NaN;
+            }
           }
         }
         let subgroups = [];
-        if (mode === "column") subgroups = [d]; else { for (let i = 0; i < d.length; i += size) subgroups.push(d.slice(i, i + size)); }
-        renderCapabilityReport(container, d, subgroups, displayName, localConfig);
-
+        if (mode === "column") subgroups = [d];
+        else {
+          for (let i = 0; i < d.length; i += size)
+            subgroups.push(d.slice(i, i + size));
+        }
+        renderCapabilityReport(
+          container,
+          d,
+          subgroups,
+          displayName,
+          localConfig
+        );
       });
     }
   }
@@ -215,7 +348,11 @@ function performAdvancedStats(activeGroups, targetValue) {
   }, {});
 
   const groupNames = Object.keys(logicalGroups);
-  const analysis = calculateAdvancedStats(logicalGroups, targetValue, isPairedMode);
+  const analysis = calculateAdvancedStats(
+    logicalGroups,
+    targetValue,
+    isPairedMode
+  );
 
   if (!analysis.type || groupNames.length === 0) {
     resultDiv.innerHTML = "";
@@ -225,14 +362,19 @@ function performAdvancedStats(activeGroups, targetValue) {
 
   // --- 1. 輔助工具定義 ---
   const formatVal = (v) => (v === undefined || isNaN(v) ? "---" : v.toFixed(4));
-  const getFlag = (p) => (p < 0.05 ? `<span style="color:#c0392b; font-weight:bold;">🚩 顯著差異</span>` : `<span style="color:#7f8c8d;">不顯著</span>`);
+  const getFlag = (p) =>
+    p < 0.05
+      ? `<span style="color:#c0392b; font-weight:bold;">🚩 顯著差異</span>`
+      : `<span style="color:#7f8c8d;">不顯著</span>`;
 
   const getFCritHelper = (df1, df2) => {
-    if (typeof fCDF !== 'function' || df1 <= 0 || df2 <= 0) return "---";
-    let low = 0, high = 1000;
+    if (typeof fCDF !== "function" || df1 <= 0 || df2 <= 0) return "---";
+    let low = 0,
+      high = 1000;
     for (let i = 0; i < 20; i++) {
       let mid = (low + high) / 2;
-      if (1 - fCDF(mid, df1, df2) > 0.05) low = mid; else high = mid;
+      if (1 - fCDF(mid, df1, df2) > 0.05) low = mid;
+      else high = mid;
     }
     return high.toFixed(4);
   };
@@ -244,17 +386,20 @@ function performAdvancedStats(activeGroups, targetValue) {
   let resA = null; // 儲存最終使用的統計結果
 
   if (analysis.type === "ANOVA") {
-    const groupsArr = groupNames.map(n => logicalGroups[n]);
+    const groupsArr = groupNames.map((n) => logicalGroups[n]);
     const levA = leveneTest(groupsArr);
     const useWelch = !levA.isHomogeneous;
     resA = useWelch ? welchAnova(groupsArr) : analysis.data;
     testMethodName = useWelch ? "Welch's ANOVA" : "One-way ANOVA";
     finalP = resA.p;
-    diagInfo = `<span style="font-size: 16px; color: #666;"> (Levene Test P: ${levA.p.toFixed(4)}，判定：${levA.isHomogeneous ? '齊一' : '不齊一'})</span>`;
+    diagInfo = `<span style="font-size: 16px; color: #666;"> (Levene Test P: ${levA.p.toFixed(
+      4
+    )}，判定：${levA.isHomogeneous ? "齊一" : "不齊一"})</span>`;
   } else {
     resA = analysis.data;
     finalP = resA.p;
-    testMethodName = (analysis.type === "PAIRED_T") ? "成對樣本 T 檢定" : "獨立樣本 T 檢定";
+    testMethodName =
+      analysis.type === "PAIRED_T" ? "成對樣本 T 檢定" : "獨立樣本 T 檢定";
   }
 
   const pValStr = finalP < 0.0001 ? "< 0.0001" : finalP.toFixed(5);
@@ -294,19 +439,40 @@ function performAdvancedStats(activeGroups, targetValue) {
             <tbody>
                 <tr style="border-bottom: 1px solid #eee;">
                     <td style="padding: 12px;">組間 (Between)</td>
-                    <td style="padding: 12px; text-align: center;">${formatVal(analysis.data.ssb)}</td>
-                    <td style="padding: 12px; text-align: center;">${resA.df1}</td>
-                    <td style="padding: 12px; text-align: center;">${formatVal(analysis.data.ssb / resA.df1)}</td>
-                    <td style="padding: 12px; text-align: center;">${formatVal(resA.F)}</td>
-                    <td style="padding: 12px; text-align: center; color: ${isSignificant ? '#c0392b' : '#2ecc71'}; font-weight: bold;">${pValStr}</td>
-                    <td style="padding: 12px; text-align: center;">${getFCritHelper(resA.df1, resA.df2)}</td>
-                    <td style="padding: 12px; text-align: center; color: ${isSignificant ? '#c0392b' : '#2ecc71'}; font-weight: bold;">${getFlag(finalP)}</td>
+                    <td style="padding: 12px; text-align: center;">${formatVal(
+                      analysis.data.ssb
+                    )}</td>
+                    <td style="padding: 12px; text-align: center;">${
+                      resA.df1
+                    }</td>
+                    <td style="padding: 12px; text-align: center;">${formatVal(
+                      analysis.data.ssb / resA.df1
+                    )}</td>
+                    <td style="padding: 12px; text-align: center;">${formatVal(
+                      resA.F
+                    )}</td>
+                    <td style="padding: 12px; text-align: center; color: ${
+                      isSignificant ? "#c0392b" : "#2ecc71"
+                    }; font-weight: bold;">${pValStr}</td>
+                    <td style="padding: 12px; text-align: center;">${getFCritHelper(
+                      resA.df1,
+                      resA.df2
+                    )}</td>
+                    <td style="padding: 12px; text-align: center; color: ${
+                      isSignificant ? "#c0392b" : "#2ecc71"
+                    }; font-weight: bold;">${getFlag(finalP)}</td>
                 </tr>
                 <tr style="background: #fafafa;">
                     <td style="padding: 12px;">組內 (Within)</td>
-                    <td style="padding: 12px; text-align: center;">${formatVal(analysis.data.ssw)}</td>
-                    <td style="padding: 12px; text-align: center;">${resA.df2.toFixed(1)}</td>
-                    <td style="padding: 12px; text-align: center;">${formatVal(analysis.data.ssw / resA.df2)}</td>
+                    <td style="padding: 12px; text-align: center;">${formatVal(
+                      analysis.data.ssw
+                    )}</td>
+                    <td style="padding: 12px; text-align: center;">${resA.df2.toFixed(
+                      1
+                    )}</td>
+                    <td style="padding: 12px; text-align: center;">${formatVal(
+                      analysis.data.ssw / resA.df2
+                    )}</td>
                     <td colspan="4" style="padding: 12px; text-align: center; color: #7f8c8d;">誤差項</td>
                 </tr>
             </tbody>
@@ -329,10 +495,18 @@ function performAdvancedStats(activeGroups, targetValue) {
             <tbody>
                 <tr style="border-bottom: 1px solid #eee;">
                     <td style="padding: 12px;">${groupNames.join(" vs ")}</td>
-                    <td style="padding: 12px; text-align: center;">${formatVal(resA.t)}</td>
-                    <td style="padding: 12px; text-align: center;">${resA.df.toFixed(2)}</td>
-                    <td style="padding: 12px; text-align: center; color: ${isSignificant ? '#c0392b' : '#2ecc71'}; font-weight: bold;">${pValStr}</td>
-                    <td style="padding: 12px; text-align: center; color: ${isSignificant ? '#c0392b' : '#2ecc71'}; font-weight: bold;">${getFlag(finalP)}</td>
+                    <td style="padding: 12px; text-align: center;">${formatVal(
+                      resA.t
+                    )}</td>
+                    <td style="padding: 12px; text-align: center;">${resA.df.toFixed(
+                      2
+                    )}</td>
+                    <td style="padding: 12px; text-align: center; color: ${
+                      isSignificant ? "#c0392b" : "#2ecc71"
+                    }; font-weight: bold;">${pValStr}</td>
+                    <td style="padding: 12px; text-align: center; color: ${
+                      isSignificant ? "#c0392b" : "#2ecc71"
+                    }; font-weight: bold;">${getFlag(finalP)}</td>
                 </tr>
             </tbody>
         </table>`;
@@ -347,9 +521,11 @@ function performAdvancedStats(activeGroups, targetValue) {
             </h3>
             <p style="margin: 0; font-size: 24px; line-height: 1.6; color: #333;">
                 檢定 P-Value 為 <b style="font-size: 26px;">${pValStr}</b>。在 α=0.05 顯著水準下，
-                ${isSignificant
-      ? `<span style="color:#c0392b; font-weight:bold;">拒絕虛無假設</span>。結果顯示不同組別之間存在顯著差異，建議檢查製程。`
-      : `<span style="color:#2ecc71; font-weight:bold;">無法拒絕虛無假設</span>。目前數據不足以證明組別之間存在顯著差異。`}
+                ${
+                  isSignificant
+                    ? `<span style="color:#c0392b; font-weight:bold;">拒絕虛無假設</span>。結果顯示不同組別之間存在顯著差異，建議檢查製程。`
+                    : `<span style="color:#2ecc71; font-weight:bold;">無法拒絕虛無假設</span>。目前數據不足以證明組別之間存在顯著差異。`
+                }
             </p>
         </div>
     </div>`; // 結束卡片容器
@@ -362,8 +538,16 @@ function performAdvancedStats(activeGroups, targetValue) {
         <table style="width:100%; border-collapse: collapse; margin-top:15px; font-size:22px;">
             <thead><tr style="background:#f8f9fa; border-bottom:2px solid #dee2e6;"><td>比較對象</td><td style="text-align:center;">差異值</td><td style="text-align:center;">Q 統計量</td><td style="text-align:center;">判定</td></tr></thead>
             <tbody>`;
-    analysis.postHoc.forEach(ph => {
-      html += `<tr style="border-bottom: 1px solid #eee;"><td style="padding:10px;">${ph.pair}</td><td style="text-align:center;">${ph.diff}</td><td style="text-align:center;">${ph.qValue} (臨界:${ph.qCrit})</td><td style="text-align:center;">${ph.isSignificant ? '<b style="color:#c0392b;">🚩 顯著</b>' : '不顯著'}</td></tr>`;
+    analysis.postHoc.forEach((ph) => {
+      html += `<tr style="border-bottom: 1px solid #eee;"><td style="padding:10px;">${
+        ph.pair
+      }</td><td style="text-align:center;">${
+        ph.diff
+      }</td><td style="text-align:center;">${ph.qValue} (臨界:${
+        ph.qCrit
+      })</td><td style="text-align:center;">${
+        ph.isSignificant ? '<b style="color:#c0392b;">🚩 顯著</b>' : "不顯著"
+      }</td></tr>`;
     });
     html += `</tbody></table></div>`;
   }
@@ -374,61 +558,225 @@ function performAdvancedStats(activeGroups, targetValue) {
 }
 function autoGroupColoring() {
   const groupMap = {};
-  let baseColors = ["#1F77B4", "#FF7F0E", "#2CA02C", "#D62728", "#9467BD", "#8C564B", "#E377C2", "#7F7F7F", "#BCBD22", "#17BECF", "#003F5C", "#DE425B", "#488F31", "#6050DC", "#B33016", "#00A3AD", "#8A2BE2", "#FFA600", "#58508D", "#BC5090", "#00D2D3", "#54A0FF", "#5F27CD", "#EE5253", "#01A3A4", "#FF9F43", "#10AC84", "#222F3E", "#F368E0", "#FF6B6B"];
-  for (let i = baseColors.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[baseColors[i], baseColors[j]] = [baseColors[j], baseColors[i]]; }
+  let baseColors = [
+    "#1F77B4",
+    "#FF7F0E",
+    "#2CA02C",
+    "#D62728",
+    "#9467BD",
+    "#8C564B",
+    "#E377C2",
+    "#7F7F7F",
+    "#BCBD22",
+    "#17BECF",
+    "#003F5C",
+    "#DE425B",
+    "#488F31",
+    "#6050DC",
+    "#B33016",
+    "#00A3AD",
+    "#8A2BE2",
+    "#FFA600",
+    "#58508D",
+    "#BC5090",
+    "#00D2D3",
+    "#54A0FF",
+    "#5F27CD",
+    "#EE5253",
+    "#01A3A4",
+    "#FF9F43",
+    "#10AC84",
+    "#222F3E",
+    "#F368E0",
+    "#FF6B6B",
+  ];
+  for (let i = baseColors.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [baseColors[i], baseColors[j]] = [baseColors[j], baseColors[i]];
+  }
   let colorIdx = 0;
   columnsData.forEach((col) => {
     if (col.isSequence) return;
-    const prefix = col.name.split("/")[0].trim();
-    if (!groupMap[prefix]) { groupMap[prefix] = baseColors[colorIdx % baseColors.length]; colorIdx++; }
+    const prefix = col.name.split("\\")[0].trim();
+    if (!groupMap[prefix]) {
+      groupMap[prefix] = baseColors[colorIdx % baseColors.length];
+      colorIdx++;
+    }
     col.color = groupMap[prefix];
   });
-  renderTable(); go();
+  renderTable();
+  go();
 }
 
 function renderTwoWayTable(res, nameA, nameB) {
   const resultDiv = document.getElementById("statisticsResult");
   if (!resultDiv) return;
-  const formatP = (p) => p < 0.05 ? `<b style="color:#c0392b;">${p < 0.0001 ? '&lt; 0.0001' : p.toFixed(5)}</b>` : p.toFixed(5);
+  const formatP = (p) =>
+    p < 0.05
+      ? `<b style="color:#c0392b;">${
+          p < 0.0001 ? "&lt; 0.0001" : p.toFixed(5)
+        }</b>`
+      : p.toFixed(5);
   const formatVal = (v) => (v === undefined || isNaN(v) ? "---" : v.toFixed(4));
-  const getFlag = (p) => p < 0.05 ? `<span style="color:#c0392b; font-weight:bold;">🚩 顯著</span>` : `<span style="color:#7f8c8d;">不顯著</span>`;
+  const getFlag = (p) =>
+    p < 0.05
+      ? `<span style="color:#c0392b; font-weight:bold;">🚩 顯著</span>`
+      : `<span style="color:#7f8c8d;">不顯著</span>`;
 
   const getFCrit = (df1, df2) => {
-    if (typeof fCDF !== 'function' || df1 <= 0 || df2 <= 0) return "---";
-    let low = 0, high = 1000;
-    for (let i = 0; i < 20; i++) { let mid = (low + high) / 2; if (1 - fCDF(mid, df1, df2) > 0.05) low = mid; else high = mid; }
+    if (typeof fCDF !== "function" || df1 <= 0 || df2 <= 0) return "---";
+    let low = 0,
+      high = 1000;
+    for (let i = 0; i < 20; i++) {
+      let mid = (low + high) / 2;
+      if (1 - fCDF(mid, df1, df2) > 0.05) low = mid;
+      else high = mid;
+    }
     return high.toFixed(4);
   };
 
-  const msA = res.factorA.f * res.error.ms, msB = res.factorB.f * res.error.ms, msAB = res.interaction.f * res.error.ms;
-  const tableHeaderStyle = "background:#f2f2f2; border:1px solid #d1d3d1; padding:15px; font-weight:bold; font-size:24px;";
-  const tableCellStyle = "border:1px solid #d1d3d1; padding:15px; font-size:24px;";
+  const msA = res.factorA.f * res.error.ms,
+    msB = res.factorB.f * res.error.ms,
+    msAB = res.interaction.f * res.error.ms;
+  const tableHeaderStyle =
+    "background:#f2f2f2; border:1px solid #d1d3d1; padding:15px; font-weight:bold; font-size:24px;";
+  const tableCellStyle =
+    "border:1px solid #d1d3d1; padding:15px; font-size:24px;";
 
   let html = `<div style='font-family: "Calibri", "Microsoft JhengHei", sans-serif; padding:40px; background:#fff;'>`;
   html += `<h2 style="color: #1f4e78; border-bottom: 4px solid #1f4e78; font-size: 32px; margin-bottom: 20px;">📊 雙因子變異數分析報告</h2>`;
   html += `<table style="width:100%; border-collapse: collapse; margin-top:20px;">
       <thead><tr style="${tableHeaderStyle}"><td>來源</td><td>SS</td><td>df</td><td>MS</td><td>F</td><td>P-value</td><td>F crit</td><td>判定</td></tr></thead>
       <tbody>
-        <tr><td style="${tableCellStyle}">${nameA}</td><td style="${tableCellStyle}">${formatVal(msA * res.factorA.df)}</td><td style="${tableCellStyle}">${res.factorA.df}</td><td style="${tableCellStyle}">${formatVal(msA)}</td><td style="${tableCellStyle}">${formatVal(res.factorA.f)}</td><td style="${tableCellStyle}">${formatP(res.factorA.p)}</td><td style="${tableCellStyle}">${getFCrit(res.factorA.df, res.error.df)}</td><td style="${tableCellStyle}">${getFlag(res.factorA.p)}</td></tr>
-        <tr><td style="${tableCellStyle}">${nameB}</td><td style="${tableCellStyle}">${formatVal(msB * res.factorB.df)}</td><td style="${tableCellStyle}">${res.factorB.df}</td><td style="${tableCellStyle}">${formatVal(msB)}</td><td style="${tableCellStyle}">${formatVal(res.factorB.f)}</td><td style="${tableCellStyle}">${formatP(res.factorB.p)}</td><td style="${tableCellStyle}">${getFCrit(res.factorB.df, res.error.df)}</td><td style="${tableCellStyle}">${getFlag(res.factorB.p)}</td></tr>
-        <tr><td style="${tableCellStyle}">交互作用</td><td style="${tableCellStyle}">${formatVal(msAB * res.interaction.df)}</td><td style="${tableCellStyle}">${res.interaction.df}</td><td style="${tableCellStyle}">${formatVal(msAB)}</td><td style="${tableCellStyle}">${formatVal(res.interaction.f)}</td><td style="${tableCellStyle}">${formatP(res.interaction.p)}</td><td style="${tableCellStyle}">${getFCrit(res.interaction.df, res.error.df)}</td><td style="${tableCellStyle}">${getFlag(res.interaction.p)}</td></tr>
-        <tr style="background:#fafafa;"><td style="${tableCellStyle}">誤差</td><td style="${tableCellStyle}">${formatVal(res.error.ms * res.error.df)}</td><td style="${tableCellStyle}">${res.error.df}</td><td style="${tableCellStyle}">${formatVal(res.error.ms)}</td><td colspan="4" style="${tableCellStyle}">---</td></tr>
+        <tr><td style="${tableCellStyle}">${nameA}</td><td style="${tableCellStyle}">${formatVal(
+    msA * res.factorA.df
+  )}</td><td style="${tableCellStyle}">${
+    res.factorA.df
+  }</td><td style="${tableCellStyle}">${formatVal(
+    msA
+  )}</td><td style="${tableCellStyle}">${formatVal(
+    res.factorA.f
+  )}</td><td style="${tableCellStyle}">${formatP(
+    res.factorA.p
+  )}</td><td style="${tableCellStyle}">${getFCrit(
+    res.factorA.df,
+    res.error.df
+  )}</td><td style="${tableCellStyle}">${getFlag(res.factorA.p)}</td></tr>
+        <tr><td style="${tableCellStyle}">${nameB}</td><td style="${tableCellStyle}">${formatVal(
+    msB * res.factorB.df
+  )}</td><td style="${tableCellStyle}">${
+    res.factorB.df
+  }</td><td style="${tableCellStyle}">${formatVal(
+    msB
+  )}</td><td style="${tableCellStyle}">${formatVal(
+    res.factorB.f
+  )}</td><td style="${tableCellStyle}">${formatP(
+    res.factorB.p
+  )}</td><td style="${tableCellStyle}">${getFCrit(
+    res.factorB.df,
+    res.error.df
+  )}</td><td style="${tableCellStyle}">${getFlag(res.factorB.p)}</td></tr>
+        <tr><td style="${tableCellStyle}">交互作用</td><td style="${tableCellStyle}">${formatVal(
+    msAB * res.interaction.df
+  )}</td><td style="${tableCellStyle}">${
+    res.interaction.df
+  }</td><td style="${tableCellStyle}">${formatVal(
+    msAB
+  )}</td><td style="${tableCellStyle}">${formatVal(
+    res.interaction.f
+  )}</td><td style="${tableCellStyle}">${formatP(
+    res.interaction.p
+  )}</td><td style="${tableCellStyle}">${getFCrit(
+    res.interaction.df,
+    res.error.df
+  )}</td><td style="${tableCellStyle}">${getFlag(res.interaction.p)}</td></tr>
+        <tr style="background:#fafafa;"><td style="${tableCellStyle}">誤差</td><td style="${tableCellStyle}">${formatVal(
+    res.error.ms * res.error.df
+  )}</td><td style="${tableCellStyle}">${
+    res.error.df
+  }</td><td style="${tableCellStyle}">${formatVal(
+    res.error.ms
+  )}</td><td colspan="4" style="${tableCellStyle}">---</td></tr>
       </tbody></table></div>`;
   resultDiv.style.display = "block";
   resultDiv.innerHTML = html;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  const realTimeInputs = ["fontSize", "titleFontSize", "lineWidth", "pointSize", "specLSL", "specUSL", "specTarget", "yMinLeft", "yMaxLeft", "yStepLeft", "subgroupSizeInput", "extremeXOffsetInput", "meanMedianXOffsetInput", "statFontSize", "chartHeight", "boxGap"];
-  realTimeInputs.forEach((id) => { document.getElementById(id)?.addEventListener("input", () => { clearTimeout(window.rtTimeout); window.rtTimeout = setTimeout(go, 20); }); });
-  const changeInputs = ["specLineColor", "specLineStyle", "showBox", "modeLine", "modeBar", "modeMixed", "showDot", "yUnitRight", "showOutliers", "showAllPoints", "showMean", "showMedian", "showExtremes", "showGrid", "useBoldFont", "showCapability", "combineGroups", "subgroupMode", "stdDevMethod", "showPValue", "showPairedP"];
-  changeInputs.forEach((id) => { const el = document.getElementById(id); if (el) { el.addEventListener("change", go); if (el.type !== "checkbox") el.addEventListener("input", go); } });
-  initTable(); loadSettings(); if (!localStorage.getItem("chart_34_4_settings")) go();
+  const realTimeInputs = [
+    "fontSize",
+    "titleFontSize",
+    "lineWidth",
+    "pointSize",
+    "specLSL",
+    "specUSL",
+    "specTarget",
+    "yMinLeft",
+    "yMaxLeft",
+    "yStepLeft",
+    "subgroupSizeInput",
+    "extremeXOffsetInput",
+    "meanMedianXOffsetInput",
+    "statFontSize",
+    "chartHeight",
+    "boxGap",
+  ];
+  realTimeInputs.forEach((id) => {
+    document.getElementById(id)?.addEventListener("input", () => {
+      clearTimeout(window.rtTimeout);
+      window.rtTimeout = setTimeout(go, 20);
+    });
+  });
+  const changeInputs = [
+    "specLineColor",
+    "specLineStyle",
+    "showBox",
+    "modeLine",
+    "modeBar",
+    "modeMixed",
+    "showDot",
+    "yUnitRight",
+    "showOutliers",
+    "showAllPoints",
+    "showMean",
+    "showMedian",
+    "showExtremes",
+    "showGrid",
+    "useBoldFont",
+    "showCapability",
+    "combineGroups",
+    "subgroupMode",
+    "stdDevMethod",
+    "showPValue",
+    "showPairedP",
+  ];
+  changeInputs.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener("change", go);
+      if (el.type !== "checkbox") el.addEventListener("input", go);
+    }
+  });
+  initTable();
+  loadSettings();
+  if (!localStorage.getItem("chart_34_4_settings")) go();
   document.addEventListener("keydown", (e) => {
-    if ((e.key === "Delete" || e.key === "Backspace") && lastClickedPoint && document.activeElement.tagName !== "INPUT") {
-      e.preventDefault(); deleteOutlierPoint(lastClickedPoint.groupName, lastClickedPoint.value); lastClickedPoint = null;
+    if (
+      (e.key === "Delete" || e.key === "Backspace") &&
+      lastClickedPoint &&
+      document.activeElement.tagName !== "INPUT"
+    ) {
+      e.preventDefault();
+      deleteOutlierPoint(lastClickedPoint.groupName, lastClickedPoint.value);
+      lastClickedPoint = null;
     }
   });
 });
 
-window.addEventListener("resize", () => { plotlyCharts.forEach((id) => { try { Plotly.Plots.resize(document.getElementById(id)); } catch (e) { } }); });
+window.addEventListener("resize", () => {
+  plotlyCharts.forEach((id) => {
+    try {
+      Plotly.Plots.resize(document.getElementById(id));
+    } catch (e) {}
+  });
+});

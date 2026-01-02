@@ -239,13 +239,13 @@ function createPlotlyBoxChart(
   }
 
   // --- 2. 判斷圖例邏輯 ---
-  let hasSlash = groupNames.some((name) => String(name).includes("/"));
+  let hasSlash = groupNames.some((name) => String(name).includes("\\"));
   let legendItemsHtml = "";
   if (hasSlash) {
     const groupOrder = [];
     const groupLabels = {};
     groupNames.forEach((name, i) => {
-      const gName = String(name).split("/")[0].trim();
+      const gName = String(name).split("\\")[0].trim();
       if (!groupLabels[gName]) {
         groupOrder.push(gName);
         groupLabels[gName] = colors[i];
@@ -271,7 +271,7 @@ function createPlotlyBoxChart(
   div.innerHTML = `
     <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin-top: 25px; margin-bottom: 15px; width: 100%;">
       <div style="padding-left: 20px; display: flex; justify-content: flex-start;">${statsHeaderBoxHtml}</div>
-      <h2 style="margin: 0; font-size: ${titleFontSize}px; text-align: center; white-space: nowrap; font-weight: ${
+      <h2 style="margin: 0; padding: 0 20px;font-size: ${titleFontSize}px; text-align: center; white-space: nowrap; font-weight: ${
     useBold ? "bold" : "normal"
   }; font-family: 'Microsoft JhengHei';">${title}</h2>
       
@@ -484,7 +484,7 @@ function createPlotlyBoxChart(
         ticktext: groupNames.map((n) =>
           toBold(
             String(n)
-              .split("/")
+              .split("\\")
               .pop()
               .replace(/[\{\｛].+?[\}\｝]/g, "")
               .trim()

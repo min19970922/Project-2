@@ -64,7 +64,7 @@ function renderTable() {
       if (col.isSequence) {
         html += `
     <th class="seq-col-header" style="width: 60px; padding: 5px;">
-        <button onclick="autoGroupColoring()" title="依 / 自動分組配色" 
+        <button onclick="autoGroupColoring()" title="依 \\ 自動分組配色" 
             style="padding: 2px 5px; margin: 0; font-size: 12px; background: #27ae60; width: 100%;">
             🎨 配色
         </button>
