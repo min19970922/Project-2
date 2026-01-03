@@ -440,3 +440,63 @@ function handleBulkPaste(text) {
   renderTable();
   go();
 }
+
+/**
+ * 一鍵自動分組配色邏輯
+ * 依據「分組\\項目」中的分組名稱自動分配顏色
+ */
+function autoGroupColoring() {
+  const groupMap = {};
+  // 豐富的配色色票
+  let baseColors = [
+    "#1F77B4",
+    "#FF7F0E",
+    "#2CA02C",
+    "#D62728",
+    "#9467BD",
+    "#8C564B",
+    "#E377C2",
+    "#7F7F7F",
+    "#BCBD22",
+    "#17BECF",
+    "#003F5C",
+    "#DE425B",
+    "#488F31",
+    "#6050DC",
+    "#B33016",
+    "#00A3AD",
+    "#8A2BE2",
+    "#FFA600",
+    "#58508D",
+    "#BC5090",
+  ];
+
+  // 隨機打亂顏色順序 (Fisher-Yates Shuffle)
+  for (let i = baseColors.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [baseColors[i], baseColors[j]] = [baseColors[j], baseColors[i]];
+  }
+
+  let colorIdx = 0;
+  // 遍歷所有數據欄位 (排除序號欄)
+  columnsData.forEach((col) => {
+    if (col.isSequence) return;
+
+    // 取得「\\」前面的文字作為分組依據
+    const prefix = col.name.split("\\")[0].trim();
+
+    if (!groupMap[prefix]) {
+      groupMap[prefix] = baseColors[colorIdx % baseColors.length];
+      colorIdx++;
+    }
+
+    // 指定顏色
+    col.color = groupMap[prefix];
+  });
+
+  // 更新介面與圖表
+  renderTable();
+  if (typeof go === "function") {
+    go(); // 重新生成圖表以反映顏色變動
+  }
+}
