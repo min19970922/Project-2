@@ -90,6 +90,73 @@ function go() {
     );
   }
 
+  // --- 5. 繪製圖表 (在 createPlotlyBoxChart 之後加入) ---
+  const trendConfig = {
+    fontSize: config.fontSize,
+    lineWidth: config.visuals.lineWidth,
+    pointSize: config.visuals.pointSize,
+    chartHeight: config.visuals.chartHeight,
+    useBold: config.useBold,
+    titleFontSize: config.titleFontSize,
+    colors: activeGroupsForPlot.map((g) => g.color),
+    boxGap: config.visuals.boxGap,
+  };
+
+  if (config.trendModes.line) {
+    createPlotlyTrendChart(
+      activeGroupsForPlot,
+      config.mainTitle,
+      config.yUnitLeft,
+      config.yUnitRight,
+      "charts",
+      "line",
+      trendConfig
+    );
+  }
+  if (config.trendModes.bar) {
+    createPlotlyTrendChart(
+      activeGroupsForPlot,
+      config.mainTitle,
+      config.yUnitLeft,
+      config.yUnitRight,
+      "charts",
+      "bar",
+      trendConfig
+    );
+  }
+  if (config.trendModes.mixed) {
+    createPlotlyTrendChart(
+      activeGroupsForPlot,
+      config.mainTitle,
+      config.yUnitLeft,
+      config.yUnitRight,
+      "charts",
+      "mixed",
+      trendConfig
+    );
+  }
+
+  // 點圖
+  if (config.modes.showDot) {
+    createClassicDotPlot(
+      activeGroupsForPlot.map((g) => ({
+        label: g.name,
+        values: g.values.filter((v) => v != null && !isNaN(v)),
+      })),
+      trendConfig.colors,
+      config.mainTitle,
+      config.yUnitLeft,
+      container,
+      config.fontSize,
+      config.yStep,
+      config.visuals.showGrid,
+      config.visuals.lineWidth,
+      config.useBold,
+      config.visuals.chartHeight,
+      config.titleFontSize
+    );
+  }
+
   // --- 6. 統計分析報告渲染 ---
   if (config.modes.showPValue && analysis) {
     resultDiv.style.display = "block";
