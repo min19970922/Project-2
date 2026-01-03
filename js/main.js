@@ -1,6 +1,9 @@
 /**
  * main.js - 完整版控制中心 (修正變數一致性)
  */
+let capChartInstances = [];
+let plotlyCharts = [];
+
 function go() {
   const scrollPos = window.scrollY;
 
