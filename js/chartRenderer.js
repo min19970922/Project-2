@@ -188,54 +188,62 @@ function createPlotlyBoxChart(
   const specLineStyle =
     document.getElementById("specLineStyle").value || "solid";
 
-  // --- 1. 使用外部傳入的 analysisResult 生成摘要框 (與下方報告同步) ---
+  // --- 1. 使用外部傳入的 analysisResult 生成摘要框 ---
   let statsHeaderBoxHtml = "";
 
   if (showPValueCheckbox && analysisResult && analysisResult.data) {
     const d = analysisResult.data;
-    const isSig = d.p < 0.05;
-    const pValStr = d.p < 0.0001 ? "0.00000" : d.p.toFixed(5);
+    const isSig = (analysisResult.p || 0) < 0.05;
+    const pValStr =
+      analysisResult.p < 0.0001
+        ? "0.00000"
+        : analysisResult.p
+        ? analysisResult.p.toFixed(5)
+        : "---";
 
-    let methodDisplay = analysisResult.type;
+    let methodDisplay = analysisResult.type || "Test";
+    let statVal = "---";
+    let dfDisplay = "---";
+
     if (methodDisplay === "ANOVA") {
-      methodDisplay = d.method === "Welch" ? "Welch's ANOVA" : "One-way ANOVA";
-    } else if (methodDisplay === "INDEPENDENT_T") {
-      methodDisplay = "Independent T";
-    } else {
+      methodDisplay = analysisResult.isWelch
+        ? "Welch's ANOVA"
+        : "One-way ANOVA";
+      statVal = d.F ? d.F.toFixed(3) : "---";
+      dfDisplay = `${d.df1?.toFixed(0)}, ${d.df2?.toFixed(1)}`;
+    } else if (methodDisplay === "TWO_WAY") {
+      methodDisplay = "Two-way ANOVA";
+      statVal = "See Table"; // 雙因子有多個 F 值，此處簡化
+      dfDisplay = `Multiple`;
+    } else if (methodDisplay.includes("T")) {
       methodDisplay = methodDisplay.replace("_", " ");
+      statVal = d.t ? d.t.toFixed(3) : "---";
+      dfDisplay = d.df ? d.df.toFixed(1) : "---";
     }
 
     statsHeaderBoxHtml = `
-      <div style="border: 2px solid #2980b9; border-radius: 8px; padding: 10px 15px; 
-                  background: #ffffff; font-family: 'Calibri', sans-serif; 
-                  width: fit-content; white-space: nowrap;
-                  margin-top: -45px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); pointer-events: none;">
-          <div style="font-weight:bold; color:#1f4e78; border-bottom:2px solid #2980b9; margin-bottom:6px; font-size:${Math.round(
-            statFontSize * 0.9
-          )}px;">
-              ${methodDisplay}
-          </div>
-          <table style="width: 100%; font-size: ${
-            statFontSize * 0.8
-          }px; border-collapse: collapse; line-height: 0.9;">
-              <tr><td style="color:#666; padding-right:20px;">P-Value</td>
-                  <td style="text-align:right; font-weight:bold; color:${
-                    isSig ? "#c0392b" : "#2ecc71"
-                  }">${pValStr}</td></tr>
-              <tr><td style="color:#666;">Stat</td>
-                  <td style="text-align:right;">${(d.F || d.t || 0).toFixed(
-                    3
-                  )}</td></tr>
-              <tr><td style="color:#666;">df</td>
-                  <td style="text-align:right;">${
-                    d.df2
-                      ? `${d.df1.toFixed(0)}, ${d.df2.toFixed(1)}`
-                      : d.df
-                      ? d.df.toFixed(1)
-                      : "---"
-                  }</td></tr>
-          </table>
-      </div>`;
+    <div style="border: 2px solid #2980b9; border-radius: 8px; padding: 10px 15px; 
+                background: #ffffff; font-family: 'Calibri', sans-serif; 
+                width: fit-content; white-space: nowrap;
+                margin-top: -45px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); pointer-events: none;">
+        <div style="font-weight:bold; color:#1f4e78; border-bottom:2px solid #2980b9; margin-bottom:6px; font-size:${Math.round(
+          statFontSize * 0.9
+        )}px;">
+            ${methodDisplay}
+        </div>
+        <table style="width: 100%; font-size: ${
+          statFontSize * 0.8
+        }px; border-collapse: collapse; line-height: 0.9;">
+            <tr><td style="color:#666; padding-right:20px;">P-Value</td>
+                <td style="text-align:right; font-weight:bold; color:${
+                  isSig ? "#c0392b" : "#2ecc71"
+                }">${pValStr}</td></tr>
+            <tr><td style="color:#666;">Stat</td>
+                <td style="text-align:right;">${statVal}</td></tr>
+            <tr><td style="color:#666;">df</td>
+                <td style="text-align:right;">${dfDisplay}</td></tr>
+        </table>
+    </div>`;
   }
 
   // --- 2. 判斷圖例邏輯 ---
@@ -1608,5 +1616,106 @@ function renderStatisticalReport(analysis) {
   }
 
   resultDiv.style.display = "block";
+  resultDiv.innerHTML = html;
+}
+
+/**
+ * 渲染雙因子 ANOVA 報告表格 (28px 大字體版)
+ */
+function renderTwoWayTable(res, nameA, nameB) {
+  const resultDiv = document.getElementById("statisticsResult");
+  if (!resultDiv || !res) return;
+
+  const formatVal = (v) => (v === undefined || isNaN(v) ? "---" : v.toFixed(4));
+  const formatP = (p) =>
+    p < 0.05
+      ? `<b style="color:#c0392b;">${
+          p < 0.0001 ? "< 0.0001" : p.toFixed(5)
+        }</b>`
+      : p.toFixed(5);
+
+  const getFlag = (p) =>
+    p < 0.05
+      ? `<span style="color:#c0392b; font-weight:bold;">🚩 顯著</span>`
+      : `<span style="color:#7f8c8d;">不顯著</span>`;
+
+  // 計算 MS (Mean Square) 若數據中未包含
+  const msA = res.factorA.f * res.error.ms;
+  const msB = res.factorB.f * res.error.ms;
+  const msAB = res.interaction.f * res.error.ms;
+
+  let html = `
+    <div style="margin: 40px auto; max-width: 95%; background: #fff; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 30px; border: 1px solid #e0e0e0; font-family: 'Calibri', sans-serif; font-size: 28px;">
+      <h2 style="color: #1f4e78; border-bottom: 4px solid #1f4e78; padding-bottom: 15px; margin-bottom: 20px; font-size: 32px;">
+        📊 雙因子變異數分析報告 <span style="font-size: 24px; font-weight: normal; color: #555;">(Two-way ANOVA)</span>
+      </h2>
+      <table style="width:100%; border-collapse: collapse; margin-top:20px; font-size:24px;">
+        <thead>
+          <tr style="background:#f8f9fa; border-top:1px solid #dee2e6; border-bottom:1px solid #dee2e6;">
+            <th style="padding:12px; text-align:left;">變異來源</th>
+            <th style="padding:12px; text-align:center;">df</th>
+            <th style="padding:12px; text-align:center;">MS</th>
+            <th style="padding:12px; text-align:center;">F</th>
+            <th style="padding:12px; text-align:center;">P-value</th>
+            <th style="padding:12px; text-align:center;">判定</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:12px;">${nameA} (因子 A)</td>
+            <td style="padding:12px; text-align:center;">${res.factorA.df}</td>
+            <td style="padding:12px; text-align:center;">${formatVal(msA)}</td>
+            <td style="padding:12px; text-align:center;">${formatVal(
+              res.factorA.f
+            )}</td>
+            <td style="padding:12px; text-align:center;">${formatP(
+              res.factorA.p
+            )}</td>
+            <td style="padding:12px; text-align:center;">${getFlag(
+              res.factorA.p
+            )}</td>
+          </tr>
+          <tr>
+            <td style="padding:12px;">${nameB} (因子 B)</td>
+            <td style="padding:12px; text-align:center;">${res.factorB.df}</td>
+            <td style="padding:12px; text-align:center;">${formatVal(msB)}</td>
+            <td style="padding:12px; text-align:center;">${formatVal(
+              res.factorB.f
+            )}</td>
+            <td style="padding:12px; text-align:center;">${formatP(
+              res.factorB.p
+            )}</td>
+            <td style="padding:12px; text-align:center;">${getFlag(
+              res.factorB.p
+            )}</td>
+          </tr>
+          <tr style="background:#fffcf5;">
+            <td style="padding:12px;">交互作用 (Interaction)</td>
+            <td style="padding:12px; text-align:center;">${
+              res.interaction.df
+            }</td>
+            <td style="padding:12px; text-align:center;">${formatVal(msAB)}</td>
+            <td style="padding:12px; text-align:center;">${formatVal(
+              res.interaction.f
+            )}</td>
+            <td style="padding:12px; text-align:center;">${formatP(
+              res.interaction.p
+            )}</td>
+            <td style="padding:12px; text-align:center;">${getFlag(
+              res.interaction.p
+            )}</td>
+          </tr>
+          <tr style="background:#fafafa; color:#7f8c8d;">
+            <td style="padding:12px;">誤差 (Error)</td>
+            <td style="padding:12px; text-align:center;">${res.error.df}</td>
+            <td style="padding:12px; text-align:center;">${formatVal(
+              res.error.ms
+            )}</td>
+            <td colspan="3" style="text-align:center;">---</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `;
   resultDiv.innerHTML = html;
 }

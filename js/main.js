@@ -59,7 +59,8 @@ function go() {
   const analysis = StatsEngine.analyze(
     logicalGroups,
     config.spec.target,
-    config.modes.isPaired
+    config.modes.isPaired,
+    rawActiveGroups
   );
 
   // --- 5. 繪製圖表 ---
@@ -89,15 +90,35 @@ function go() {
     );
   }
 
-  // --- 6. 統計分析報告渲染 (修正處) ---
-  if (config.modes.showPValue) {
+  // --- 6. 統計分析報告渲染 ---
+  if (config.modes.showPValue && analysis) {
     resultDiv.style.display = "block";
-    // 呼叫你在 chartRenderer.js 結尾定義的新函數
-    if (typeof renderStatisticalReport === "function") {
-      renderStatisticalReport(analysis);
+
+    if (analysis.type === "TWO_WAY") {
+      if (typeof renderTwoWayTable === "function") {
+        renderTwoWayTable(analysis.data, analysis.nameA, analysis.nameB);
+      }
+      if (typeof createInteractionPlot === "function") {
+        // ✨ 確保最後一個參數 config 正確傳入
+        createInteractionPlot(
+          analysis.factorData,
+          analysis.nameA,
+          analysis.nameB,
+          config.mainTitle,
+          config.yUnitLeft,
+          "charts",
+          config
+        );
+      }
+    } else {
+      // 一般報告渲染
+      if (typeof renderStatisticalReport === "function") {
+        renderStatisticalReport(analysis);
+      }
     }
   } else {
     resultDiv.style.display = "none";
+    resultDiv.innerHTML = ""; // 清空內容
   }
 
   // --- 7. 製程能力分析 ---
